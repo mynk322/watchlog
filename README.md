@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Watchlog
 
-## Getting Started
+A personal, dynamic log of every movie and series you've watched — plus what's next — sorted by release year, with high-res posters pulled live from TMDB.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Next.js 16** (App Router, Turbopack) + TypeScript + Tailwind CSS v4
+- **Prisma 7** + **Postgres** (Neon in production)
+- **TMDB API** for search, posters, metadata, and India-prioritized watch-provider links
+- Deployed on **Vercel**; catalog refresh runs every 6 hours via a GitHub Actions scheduled workflow (Vercel's free tier only allows daily cron, so this runs outside it)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Local development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Copy `.env.example` to `.env` and fill in:
+   - `DATABASE_URL` — a local or remote Postgres connection string
+   - `TMDB_API_KEY` — a TMDB **API Read Access Token** (Settings → API on themoviedb.org)
+   - `CRON_SECRET` — any random string, used to authorize `/api/cron/refresh`
+2. Install dependencies and set up the database:
+   ```bash
+   npm install
+   npx prisma migrate dev
+   ```
+3. Run the dev server:
+   ```bash
+   npm run dev
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How it works
 
-## Learn More
+- **Watched** / **Watchlist** — search TMDB from the header search bar, add a result to either list. Grid is grouped by release year, newest first.
+- **Discover** — a trending row, cached in the DB and refreshed periodically so it's never empty.
+- **Click a poster** — opens the best available "watch" link (India region prioritized, falling back to US/UK, then a Google search) in a new tab.
+- **`/api/cron/refresh`** — re-fetches metadata for every saved title and repopulates the trending cache. Protected by `CRON_SECRET` (sent as a Bearer token). Triggered every 6 hours by `.github/workflows/refresh-catalog.yml`, which needs two repo secrets: `APP_URL` (the deployed site URL) and `CRON_SECRET` (matching the one set in Vercel).
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deployed via Vercel, connected to this GitHub repo for auto-deploy on push to `main`. Required production environment variables: `DATABASE_URL`, `TMDB_API_KEY`, `CRON_SECRET`.
