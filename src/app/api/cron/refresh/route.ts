@@ -1,0 +1,86 @@
+import type { NextRequest } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getDetails, getTrending } from "@/lib/tmdb";
+import { toTmdbMediaType } from "@/lib/dto";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+/** Runs `worker` over `items` with at most `limit` in flight at once. */
+async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  async function run() {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await worker(items[index]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return results;
+}
+
+async function refreshExistingTitles() {
+  const titles = await prisma.title.findMany({ select: { id: true, tmdbId: true, mediaType: true } });
+
+  let refreshed = 0;
+  let failed = 0;
+  await mapWithConcurrency(titles, 5, async (t) => {
+    try {
+      const details = await getDetails(t.tmdbId, toTmdbMediaType(t.mediaType));
+      await prisma.title.update({
+        where: { id: t.id },
+        data: {
+          title: details.title,
+          releaseYear: details.releaseYear,
+          releaseDate: details.releaseDate ? new Date(details.releaseDate) : null,
+          posterUrl: details.posterUrl,
+          backdropUrl: details.backdropUrl,
+          overview: details.overview,
+          genres: details.genres,
+          voteAverage: details.voteAverage,
+          runtime: details.runtime,
+          watchUrl: details.watchUrl,
+        },
+      });
+      refreshed++;
+    } catch (err) {
+      failed++;
+      console.error(`[cron/refresh] failed to refresh title ${t.tmdbId}`, err);
+    }
+  });
+
+  return { refreshed, failed, total: titles.length };
+}
+
+async function refreshTrendingCache() {
+  const trending = await getTrending("week");
+  const rows = trending.slice(0, 24).map((t) => ({
+    tmdbId: t.tmdbId,
+    mediaType: t.mediaType === "tv" ? ("TV" as const) : ("MOVIE" as const),
+    title: t.title,
+    releaseYear: t.releaseYear,
+    posterUrl: t.posterUrl,
+    backdropUrl: t.backdropUrl,
+    overview: t.overview,
+    voteAverage: t.voteAverage,
+  }));
+  await prisma.$transaction([
+    prisma.trendingItem.deleteMany({}),
+    ...(rows.length > 0 ? [prisma.trendingItem.createMany({ data: rows })] : []),
+  ]);
+  return { trendingCount: rows.length };
+}
+
+export async function GET(request: NextRequest) {
+  const secret = process.env.CRON_SECRET;
+  const auth = request.headers.get("authorization");
+  if (secret && auth !== `Bearer ${secret}`) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const [titlesResult, trendingResult] = await Promise.all([refreshExistingTitles(), refreshTrendingCache()]);
+
+  return Response.json({ ok: true, titles: titlesResult, trending: trendingResult });
+}

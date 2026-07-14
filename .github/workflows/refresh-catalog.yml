@@ -1,0 +1,16 @@
+name: Refresh catalog
+
+on:
+  schedule:
+    # Every 6 hours. GitHub's scheduler is best-effort, not exact-to-the-minute.
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping refresh endpoint
+        run: |
+          curl -sf -X GET "${{ secrets.APP_URL }}/api/cron/refresh" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

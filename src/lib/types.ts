@@ -1,0 +1,44 @@
+export type MediaType = "MOVIE" | "TV";
+export type TitleStatus = "WATCHED" | "WATCHLIST";
+
+export interface TitleDTO {
+  id: string;
+  tmdbId: number;
+  mediaType: MediaType;
+  title: string;
+  releaseYear: number | null;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  overview: string | null;
+  genres: string[];
+  voteAverage: number | null;
+  runtime: number | null;
+  status: TitleStatus;
+  watchUrl: string | null;
+  addedAt: string;
+  watchedAt: string | null;
+}
+
+export interface SearchResultDTO {
+  tmdbId: number;
+  mediaType: MediaType;
+  title: string;
+  releaseYear: number | null;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  overview: string;
+  voteAverage: number;
+  alreadyAdded: TitleStatus | null;
+}
+
+export interface TrendingDTO {
+  tmdbId: number;
+  mediaType: MediaType;
+  title: string;
+  releaseYear: number | null;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  overview: string;
+  voteAverage: number;
+  alreadyAdded: TitleStatus | null;
+}

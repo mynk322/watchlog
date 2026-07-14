@@ -1,0 +1,59 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MediaType {
+  MOVIE
+  TV
+}
+
+enum TitleStatus {
+  WATCHED
+  WATCHLIST
+}
+
+model Title {
+  id            String      @id @default(cuid())
+  tmdbId        Int
+  mediaType     MediaType
+  title         String
+  releaseYear   Int?
+  releaseDate   DateTime?
+  posterUrl     String?
+  backdropUrl   String?
+  overview      String?
+  genres        String[]    @default([])
+  voteAverage   Float?
+  runtime       Int?
+  status        TitleStatus
+  watchUrl      String?
+  addedAt       DateTime    @default(now())
+  watchedAt     DateTime?
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([tmdbId, mediaType])
+  @@index([status, releaseYear])
+}
+
+model TrendingItem {
+  id            String    @id @default(cuid())
+  tmdbId        Int
+  mediaType     MediaType
+  title         String
+  releaseYear   Int?
+  posterUrl     String?
+  backdropUrl   String?
+  overview      String?
+  voteAverage   Float?
+  fetchedAt     DateTime  @default(now())
+
+  @@unique([tmdbId, mediaType])
+}
