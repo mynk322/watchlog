@@ -1,6 +1,20 @@
 export type MediaType = "MOVIE" | "TV";
 export type TitleStatus = "WATCHED" | "WATCHLIST";
 
+export interface CastMemberDTO {
+  id: number;
+  name: string;
+  character: string;
+  profilePath: string | null;
+}
+
+export interface DirectorCreditDTO {
+  id: number;
+  name: string;
+  role: "Director" | "Creator";
+  profilePath: string | null;
+}
+
 export interface TitleDTO {
   id: string;
   tmdbId: number;
@@ -18,6 +32,8 @@ export interface TitleDTO {
   currentSeason: number | null;
   currentEpisode: number | null;
   totalSeasons: number | null;
+  topCast: CastMemberDTO[] | null;
+  directors: DirectorCreditDTO[] | null;
   watchUrl: string | null;
   addedAt: string;
   watchedAt: string | null;
@@ -32,6 +48,7 @@ export interface SearchResultDTO {
   backdropUrl: string | null;
   overview: string;
   voteAverage: number;
+  popularity: number;
   alreadyAdded: TitleStatus | null;
 }
 

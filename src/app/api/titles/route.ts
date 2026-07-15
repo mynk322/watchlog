@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getDetails } from "@/lib/tmdb";
+import { getDetails, getCredits } from "@/lib/tmdb";
 import { toTitleDTO, toTmdbMediaType } from "@/lib/dto";
 import type { MediaType, TitleStatus } from "@/lib/types";
 
@@ -41,6 +41,11 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Could not fetch title details from TMDB" }, { status: 502 });
   }
 
+  // Cast & crew are static once released — fetched once here (and by the cron backfill for
+  // pre-existing rows), never re-fetched.
+  const credits = await getCredits(tmdbId, toTmdbMediaType(mediaType));
+  const directors = mediaType === "TV" ? details.creators : credits.directors;
+
   const title = await prisma.title.upsert({
     where: { tmdbId_mediaType: { tmdbId, mediaType } },
     create: {
@@ -57,12 +62,16 @@ export async function POST(request: NextRequest) {
       runtime: details.runtime,
       watchUrl: details.watchUrl,
       totalSeasons: details.numberOfSeasons,
+      topCast: credits.cast as unknown as object,
+      directors: directors as unknown as object,
       status,
       watchedAt: status === "WATCHED" ? new Date() : null,
     },
     update: {
       status,
       watchedAt: status === "WATCHED" ? new Date() : null,
+      topCast: credits.cast as unknown as object,
+      directors: directors as unknown as object,
     },
   });
 

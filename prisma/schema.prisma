@@ -38,6 +38,8 @@ model Title {
   currentSeason Int?
   currentEpisode Int?
   totalSeasons  Int?
+  topCast       Json?
+  directors     Json?
   watchUrl      String?
   addedAt       DateTime    @default(now())
   watchedAt     DateTime?
@@ -45,6 +47,13 @@ model Title {
 
   @@unique([tmdbId, mediaType])
   @@index([status, releaseYear])
+}
+
+model SearchCache {
+  id        String   @id @default(cuid())
+  query     String   @unique
+  results   Json
+  fetchedAt DateTime @default(now())
 }
 
 model TrendingItem {

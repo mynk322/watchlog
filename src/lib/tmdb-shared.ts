@@ -12,6 +12,12 @@ export function backdropUrl(path: string | null, size: "w1280" | "original" = "o
   return `${TMDB_IMAGE_BASE}/${size}${path}`;
 }
 
+/** Cast/crew profile photo. Safe to import from client components. */
+export function profileUrl(path: string | null, size: "w185" | "h632" = "w185") {
+  if (!path) return null;
+  return `${TMDB_IMAGE_BASE}/${size}${path}`;
+}
+
 /** Google search fallback for titles without a known watch link. */
 export function googleSearchUrl(title: string, releaseYear: number | null) {
   const q = `watch ${title}${releaseYear ? ` ${releaseYear}` : ""}`;

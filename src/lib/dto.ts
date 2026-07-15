@@ -1,6 +1,6 @@
 import type { TitleModel } from "@/generated/prisma/models";
 import type { MediaType as TmdbMediaType } from "./tmdb";
-import type { MediaType, TitleDTO } from "./types";
+import type { CastMemberDTO, DirectorCreditDTO, MediaType, TitleDTO } from "./types";
 
 export function toTmdbMediaType(mediaType: MediaType): TmdbMediaType {
   return mediaType === "TV" ? "tv" : "movie";
@@ -24,6 +24,8 @@ export function toTitleDTO(title: TitleModel): TitleDTO {
     currentSeason: title.currentSeason,
     currentEpisode: title.currentEpisode,
     totalSeasons: title.totalSeasons,
+    topCast: (title.topCast as unknown as CastMemberDTO[] | null) ?? null,
+    directors: (title.directors as unknown as DirectorCreditDTO[] | null) ?? null,
     watchUrl: title.watchUrl,
     addedAt: title.addedAt.toISOString(),
     watchedAt: title.watchedAt ? title.watchedAt.toISOString() : null,

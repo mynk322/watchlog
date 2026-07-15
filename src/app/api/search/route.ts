@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
     return Response.json({ results: [] });
   }
 
-  const results = (await searchTitles(q)).slice(0, 20);
+  const yearParam = request.nextUrl.searchParams.get("year");
+  const year = yearParam && /^\d{4}$/.test(yearParam) ? Number(yearParam) : undefined;
+
+  const results = (await searchTitles(q, { year })).slice(0, 20);
   if (results.length === 0) {
     return Response.json({ results: [] });
   }
@@ -39,6 +42,7 @@ export async function GET(request: NextRequest) {
       backdropUrl: r.backdropUrl,
       overview: r.overview,
       voteAverage: r.voteAverage,
+      popularity: r.popularity,
       alreadyAdded: existingMap.get(`${r.tmdbId}-${mediaType}`) ?? null,
     };
   });

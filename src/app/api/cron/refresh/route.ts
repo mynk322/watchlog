@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getDetails, getTrending } from "@/lib/tmdb";
+import { getDetails, getCredits, getTrending } from "@/lib/tmdb";
 import { toTmdbMediaType } from "@/lib/dto";
 
 export const runtime = "nodejs";
@@ -22,13 +22,31 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item
 }
 
 async function refreshExistingTitles() {
-  const titles = await prisma.title.findMany({ select: { id: true, tmdbId: true, mediaType: true } });
+  const titles = await prisma.title.findMany({
+    select: { id: true, tmdbId: true, mediaType: true, topCast: true },
+  });
 
   let refreshed = 0;
   let failed = 0;
+  let creditsBackfilled = 0;
   await mapWithConcurrency(titles, 5, async (t) => {
     try {
-      const details = await getDetails(t.tmdbId, toTmdbMediaType(t.mediaType));
+      const mediaType = toTmdbMediaType(t.mediaType);
+      const details = await getDetails(t.tmdbId, mediaType);
+
+      // Cast & crew are static once released — only backfill rows that never got them (e.g.
+      // added before this feature existed), never re-fetch rows that already have it.
+      let creditsUpdate: { topCast: object; directors: object } | null = null;
+      if (t.topCast === null) {
+        const credits = await getCredits(t.tmdbId, mediaType);
+        const directors = t.mediaType === "TV" ? details.creators : credits.directors;
+        creditsUpdate = {
+          topCast: credits.cast as unknown as object,
+          directors: directors as unknown as object,
+        };
+        creditsBackfilled++;
+      }
+
       await prisma.title.update({
         where: { id: t.id },
         data: {
@@ -43,6 +61,7 @@ async function refreshExistingTitles() {
           runtime: details.runtime,
           watchUrl: details.watchUrl,
           totalSeasons: details.numberOfSeasons,
+          ...creditsUpdate,
         },
       });
       refreshed++;
@@ -52,7 +71,7 @@ async function refreshExistingTitles() {
     }
   });
 
-  return { refreshed, failed, total: titles.length };
+  return { refreshed, failed, total: titles.length, creditsBackfilled };
 }
 
 async function refreshTrendingCache() {
