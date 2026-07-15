@@ -1,9 +1,11 @@
-import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { TitleGrid } from "@/components/title-grid";
 import { DiscoverRow } from "@/components/discover-row";
+import { HeroPosterWall } from "@/components/hero-poster-wall";
 
 export const dynamic = "force-dynamic";
+
+const HERO_POSTER_TARGET = 30;
 
 async function getHeroTitle() {
   return prisma.title.findFirst({
@@ -12,24 +14,38 @@ async function getHeroTitle() {
   });
 }
 
+async function getHeroPosters() {
+  const titleRows = await prisma.title.findMany({
+    where: { posterUrl: { not: null } },
+    orderBy: [{ watchedAt: "desc" }, { addedAt: "desc" }],
+    take: HERO_POSTER_TARGET,
+    select: { id: true, posterUrl: true, title: true, tmdbId: true, mediaType: true },
+  });
+  const posters = titleRows.map((t) => ({ id: t.id, url: t.posterUrl!, alt: t.title }));
+  if (posters.length >= HERO_POSTER_TARGET) return posters;
+
+  const seen = new Set(titleRows.map((t) => `${t.tmdbId}-${t.mediaType}`));
+  const trendingRows = await prisma.trendingItem.findMany({
+    where: { posterUrl: { not: null } },
+    orderBy: { voteAverage: "desc" },
+    take: HERO_POSTER_TARGET,
+    select: { id: true, posterUrl: true, title: true, tmdbId: true, mediaType: true },
+  });
+  const fillers = trendingRows
+    .filter((t) => !seen.has(`${t.tmdbId}-${t.mediaType}`))
+    .map((t) => ({ id: t.id, url: t.posterUrl!, alt: t.title }));
+
+  return [...posters, ...fillers].slice(0, HERO_POSTER_TARGET);
+}
+
 export default async function Home() {
-  const hero = await getHeroTitle();
+  const [hero, heroPosters] = await Promise.all([getHeroTitle(), getHeroPosters()]);
 
   return (
     <div className="flex flex-col">
       <section className="relative flex min-h-[64vh] items-end overflow-hidden border-b border-border">
-        {hero?.backdropUrl ? (
-          <Image
-            src={hero.backdropUrl}
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover object-top"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,color-mix(in_srgb,var(--accent)_25%,transparent),transparent_55%),radial-gradient(circle_at_80%_0%,color-mix(in_srgb,var(--gold)_18%,transparent),transparent_50%)]" />
-        )}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,color-mix(in_srgb,var(--accent)_25%,transparent),transparent_55%),radial-gradient(circle_at_80%_0%,color-mix(in_srgb,var(--gold)_18%,transparent),transparent_50%)]" />
+        <HeroPosterWall posters={heroPosters} />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background/90 via-background/20 to-transparent" />
 
