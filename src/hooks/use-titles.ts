@@ -40,5 +40,26 @@ export function useTitles(status: TitleStatus) {
     window.dispatchEvent(new CustomEvent("titles:changed"));
   }, []);
 
-  return { titles, loading, updateStatus, removeTitle };
+  const updateRating = useCallback(async (id: string, rating: number | null) => {
+    setTitles((prev) => prev.map((t) => (t.id === id ? { ...t, rating } : t)));
+    await fetch(`/api/titles/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rating }),
+    });
+  }, []);
+
+  const updateProgress = useCallback(
+    async (id: string, progress: { currentSeason?: number; currentEpisode?: number }) => {
+      setTitles((prev) => prev.map((t) => (t.id === id ? { ...t, ...progress } : t)));
+      await fetch(`/api/titles/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(progress),
+      });
+    },
+    []
+  );
+
+  return { titles, loading, updateStatus, removeTitle, updateRating, updateProgress };
 }

@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Clapperboard } from "lucide-react";
 import { SearchBar } from "./search-bar";
 import { ThemeToggle } from "./theme-toggle";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-  { href: "#watched", label: "Watched" },
-  { href: "#watchlist", label: "Watchlist" },
-  { href: "#discover", label: "Discover" },
+  { href: "/#watched", label: "Watched" },
+  { href: "/#watchlist", label: "Watchlist" },
+  { href: "/#discover", label: "Discover" },
+  { href: "/stats", label: "Stats" },
 ];
 
 export function SiteHeader() {
@@ -32,15 +34,15 @@ export function SiteHeader() {
       )}
     >
       <div className="flex shrink-0 items-center justify-between gap-6">
-        <a href="#top" className="flex items-center gap-2 text-lg font-bold tracking-tight text-foreground">
+        <Link href="/#top" className="flex items-center gap-2 text-lg font-bold tracking-tight text-foreground">
           <Clapperboard size={22} className="text-accent" />
           Watchlog
-        </a>
+        </Link>
         <nav className="hidden items-center gap-5 text-sm font-medium text-muted sm:flex">
           {NAV_LINKS.map((link) => (
-            <a key={link.href} href={link.href} className="transition-colors hover:text-foreground">
+            <Link key={link.href} href={link.href} className="transition-colors hover:text-foreground">
               {link.label}
-            </a>
+            </Link>
           ))}
         </nav>
       </div>

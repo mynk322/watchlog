@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       voteAverage: details.voteAverage,
       runtime: details.runtime,
       watchUrl: details.watchUrl,
+      totalSeasons: details.numberOfSeasons,
       status,
       watchedAt: status === "WATCHED" ? new Date() : null,
     },

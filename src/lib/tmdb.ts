@@ -23,6 +23,7 @@ export interface TmdbDetails extends TmdbListItem {
   genres: string[];
   runtime: number | null;
   watchUrl: string | null;
+  numberOfSeasons: number | null;
 }
 
 function authHeaders(): HeadersInit {
@@ -128,6 +129,7 @@ interface RawDetails {
   runtime?: number;
   episode_run_time?: number[];
   homepage?: string;
+  number_of_seasons?: number;
 }
 
 export async function getDetails(tmdbId: number, mediaType: MediaType): Promise<TmdbDetails> {
@@ -152,6 +154,7 @@ export async function getDetails(tmdbId: number, mediaType: MediaType): Promise<
     genres: raw.genres?.map((g) => g.name) ?? [],
     runtime,
     watchUrl: watchUrl ?? raw.homepage ?? null,
+    numberOfSeasons: mediaType === "tv" ? raw.number_of_seasons ?? null : null,
   };
 }
 

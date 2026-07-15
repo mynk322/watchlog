@@ -10,6 +10,7 @@
   --accent: #ff3b5c;
   --accent-foreground: #ffffff;
   --gold: #f5c451;
+  --chart-blue: #5b8def;
   --ring: #ff3b5c;
 }
 
@@ -23,6 +24,7 @@
   --accent: #e11d48;
   --accent-foreground: #ffffff;
   --gold: #b8842a;
+  --chart-blue: #3163d4;
   --ring: #e11d48;
 }
 
@@ -36,6 +38,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-gold: var(--gold);
+  --color-chart-blue: var(--chart-blue);
   --color-ring: var(--ring);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

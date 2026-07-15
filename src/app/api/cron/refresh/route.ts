@@ -42,6 +42,7 @@ async function refreshExistingTitles() {
           voteAverage: details.voteAverage,
           runtime: details.runtime,
           watchUrl: details.watchUrl,
+          totalSeasons: details.numberOfSeasons,
         },
       });
       refreshed++;

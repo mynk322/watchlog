@@ -5,8 +5,15 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Film, Tv } from "lucide-react";
 import { RatingBadge } from "./rating-badge";
+import { StarRating } from "./star-rating";
 import { formatRuntime } from "@/lib/utils";
 import { googleSearchUrl } from "@/lib/tmdb-shared";
+
+interface ShowProgress {
+  currentSeason: number | null;
+  currentEpisode: number | null;
+  totalSeasons: number | null;
+}
 
 interface PosterCardProps {
   posterUrl: string | null;
@@ -20,6 +27,9 @@ interface PosterCardProps {
   watchUrl: string | null;
   actions?: ReactNode;
   priority?: boolean;
+  myRating?: number | null;
+  onRateChange?: (value: number | null) => void;
+  progress?: ShowProgress;
 }
 
 export function PosterCard({
@@ -34,6 +44,9 @@ export function PosterCard({
   watchUrl,
   actions,
   priority,
+  myRating,
+  onRateChange,
+  progress,
 }: PosterCardProps) {
   const [hovered, setHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -44,6 +57,11 @@ export function PosterCard({
     e.preventDefault();
     e.stopPropagation();
   }
+
+  const progressLabel =
+    progress && (progress.currentSeason || progress.currentEpisode)
+      ? `S${progress.currentSeason ?? 1} · E${progress.currentEpisode ?? 0}`
+      : null;
 
   return (
     <a
@@ -79,6 +97,12 @@ export function PosterCard({
       <div className="pointer-events-none absolute inset-x-0 bottom-0 p-3 transition-opacity duration-200 group-hover:opacity-0">
         <p className="truncate text-sm font-semibold text-white">{title}</p>
         {releaseYear && <p className="text-xs text-white/70">{releaseYear}</p>}
+        {myRating ? (
+          <div className="mt-1">
+            <StarRating value={myRating} size={11} readOnly />
+          </div>
+        ) : null}
+        {progressLabel && <p className="mt-0.5 text-[11px] font-medium text-white/60">{progressLabel}</p>}
       </div>
 
       <AnimatePresence>
@@ -94,6 +118,12 @@ export function PosterCard({
               {mediaType === "TV" ? <Tv size={12} /> : <Film size={12} />}
               {releaseYear ?? "—"}
               {runtime ? <span>&middot; {formatRuntime(runtime)}</span> : null}
+              {progressLabel ? (
+                <span>
+                  &middot; {progressLabel}
+                  {progress?.totalSeasons ? ` of ${progress.totalSeasons}` : ""}
+                </span>
+              ) : null}
             </div>
             <h3 className="mb-1 line-clamp-2 text-sm font-bold text-white">{title}</h3>
             <div className="mb-2">
@@ -103,7 +133,12 @@ export function PosterCard({
               <p className="mb-2 line-clamp-3 text-xs leading-snug text-white/80">{overview}</p>
             )}
             {genres.length > 0 && (
-              <p className="mb-3 truncate text-[11px] text-white/50">{genres.slice(0, 3).join(" · ")}</p>
+              <p className="mb-2 truncate text-[11px] text-white/50">{genres.slice(0, 3).join(" · ")}</p>
+            )}
+            {onRateChange && (
+              <div onClick={handleActionsClick} className="mb-3">
+                <StarRating value={myRating ?? null} onChange={onRateChange} size={18} />
+              </div>
             )}
             {actions && (
               <div onClick={handleActionsClick} className="flex flex-wrap gap-2">

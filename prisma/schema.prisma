@@ -34,6 +34,10 @@ model Title {
   voteAverage   Float?
   runtime       Int?
   status        TitleStatus
+  rating        Float?
+  currentSeason Int?
+  currentEpisode Int?
+  totalSeasons  Int?
   watchUrl      String?
   addedAt       DateTime    @default(now())
   watchedAt     DateTime?

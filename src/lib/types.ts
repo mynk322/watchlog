@@ -14,6 +14,10 @@ export interface TitleDTO {
   voteAverage: number | null;
   runtime: number | null;
   status: TitleStatus;
+  rating: number | null;
+  currentSeason: number | null;
+  currentEpisode: number | null;
+  totalSeasons: number | null;
   watchUrl: string | null;
   addedAt: string;
   watchedAt: string | null;
