@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { searchTitles } from "@/lib/tmdb";
+import { parseYear } from "@/lib/tmdb-shared";
 import type { SearchResultDTO } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -12,8 +13,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ results: [] });
   }
 
-  const yearParam = request.nextUrl.searchParams.get("year");
-  const year = yearParam && /^\d{4}$/.test(yearParam) ? Number(yearParam) : undefined;
+  const year = parseYear(request.nextUrl.searchParams.get("year"));
 
   const results = (await searchTitles(q, { year })).slice(0, 20);
   if (results.length === 0) {

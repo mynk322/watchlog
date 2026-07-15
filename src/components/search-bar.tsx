@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Search, Plus, Check, Loader2, X } from "lucide-react";
 import type { SearchResultDTO, TitleStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { MIN_YEAR, MAX_YEAR, parseYear } from "@/lib/tmdb-shared";
 
 const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 350;
@@ -22,11 +23,6 @@ function sortResults(results: SearchResultDTO[], mode: SortMode): SearchResultDT
   if (mode === "relevance") return results;
   const key = mode === "popularity" ? "popularity" : "voteAverage";
   return [...results].sort((a, b) => b[key] - a[key]);
-}
-
-/** 4-digit year, or undefined if the field is empty/incomplete. */
-function parseYear(raw: string): number | undefined {
-  return /^\d{4}$/.test(raw) ? Number(raw) : undefined;
 }
 
 export function SearchBar() {
@@ -161,11 +157,13 @@ export function SearchBar() {
             <input
               type="number"
               inputMode="numeric"
+              min={MIN_YEAR}
+              max={MAX_YEAR}
               value={yearInput}
               onChange={(e) => setYearInput(e.target.value.slice(0, 4))}
-              placeholder="Year"
+              placeholder={`e.g. ${MAX_YEAR - 2}`}
               aria-label="Filter by release year"
-              className="w-16 rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-foreground placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-20 rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-foreground placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <select
               value={sortMode}
