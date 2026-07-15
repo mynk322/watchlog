@@ -39,7 +39,7 @@ export default async function Home() {
           </h1>
           <p className="max-w-xl text-base text-muted sm:text-lg">
             Search to log what you&rsquo;ve seen, queue up what&rsquo;s next, and let the poster wall do the rest —
-            sorted by release year, refreshed automatically.
+            sort it your way, refreshed automatically.
           </p>
           {hero && (
             <p className="mt-2 text-xs uppercase tracking-wide text-muted/80">
@@ -51,10 +51,7 @@ export default async function Home() {
 
       <div className="flex flex-col gap-16 px-4 py-14 sm:px-8">
         <section id="watched" className="scroll-mt-24">
-          <div className="mb-6 flex items-baseline justify-between">
-            <h2 className="text-2xl font-bold text-foreground">Watched</h2>
-            <span className="text-sm text-muted">Sorted by release year</span>
-          </div>
+          <h2 className="mb-6 text-2xl font-bold text-foreground">Watched</h2>
           <TitleGrid status="WATCHED" emptyHint="Nothing logged yet — search above and mark something as watched." />
         </section>
 
