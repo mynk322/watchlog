@@ -6,6 +6,10 @@ import { Search, Plus, Check, Loader2, X } from "lucide-react";
 import type { SearchResultDTO, TitleStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const MIN_QUERY_LENGTH = 2;
+const DEBOUNCE_MS = 350;
+const CLIENT_CACHE_MAX_ENTRIES = 100;
+
 export function SearchBar() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResultDTO[]>([]);
@@ -13,25 +17,51 @@ export function SearchBar() {
   const [open, setOpen] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Session-lived cache: re-typing or backspacing back to an already-seen query skips the network entirely.
+  const cacheRef = useRef<Map<string, SearchResultDTO[]>>(new Map());
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!query.trim()) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing results when the query is emptied
+    const trimmed = query.trim();
+
+    if (trimmed.length < MIN_QUERY_LENGTH) {
+      abortRef.current?.abort();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing results below the minimum query length
       setResults([]);
+      setLoading(false);
       return;
     }
+
+    const cacheKey = trimmed.toLowerCase();
+    const cached = cacheRef.current.get(cacheKey);
+    if (cached) {
+       
+      setResults(cached);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const handle = setTimeout(async () => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, { signal: controller.signal });
         const data = await res.json();
-        setResults(data.results ?? []);
-      } catch {
-        setResults([]);
+        const found: SearchResultDTO[] = data.results ?? [];
+        if (cacheRef.current.size >= CLIENT_CACHE_MAX_ENTRIES) {
+          const oldestKey = cacheRef.current.keys().next().value;
+          if (oldestKey !== undefined) cacheRef.current.delete(oldestKey);
+        }
+        cacheRef.current.set(cacheKey, found);
+        setResults(found);
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") setResults([]);
       } finally {
         setLoading(false);
       }
-    }, 300);
+    }, DEBOUNCE_MS);
     return () => clearTimeout(handle);
   }, [query]);
 
@@ -93,8 +123,11 @@ export function SearchBar() {
 
       {open && query.trim() && (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-2xl border border-border bg-surface-elevated shadow-2xl shadow-black/50">
-          {results.length === 0 && !loading && (
-            <p className="p-4 text-sm text-muted">No matches on TMDB for &ldquo;{query}&rdquo;.</p>
+          {query.trim().length < MIN_QUERY_LENGTH ? (
+            <p className="p-4 text-sm text-muted">Keep typing to search&hellip;</p>
+          ) : (
+            results.length === 0 &&
+            !loading && <p className="p-4 text-sm text-muted">No matches on TMDB for &ldquo;{query}&rdquo;.</p>
           )}
           {results.map((item) => {
             const key = `${item.tmdbId}-${item.mediaType}`;

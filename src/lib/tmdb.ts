@@ -37,6 +37,44 @@ function authHeaders(): HeadersInit {
   };
 }
 
+/**
+ * Small in-memory TTL cache, scoped to this warm serverless instance. It won't survive a cold
+ * start or span multiple concurrent instances, but it reliably de-dupes the common case — the
+ * same query re-typed, or several requests landing on the same warm instance in quick succession.
+ */
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+
+function makeTtlCache<T>(maxEntries: number) {
+  const store = new Map<string, CacheEntry<T>>();
+  return {
+    get(key: string): T | null {
+      const entry = store.get(key);
+      if (!entry) return null;
+      if (Date.now() > entry.expiresAt) {
+        store.delete(key);
+        return null;
+      }
+      return entry.data;
+    },
+    set(key: string, data: T, ttlMs: number) {
+      if (store.size >= maxEntries) {
+        const oldestKey = store.keys().next().value;
+        if (oldestKey !== undefined) store.delete(oldestKey);
+      }
+      store.set(key, { data, expiresAt: Date.now() + ttlMs });
+    },
+  };
+}
+
+const SEARCH_CACHE_TTL_MS = 10 * 60 * 1000;
+const searchCache = makeTtlCache<TmdbListItem[]>(300);
+
+const TRENDING_CACHE_TTL_MS = 30 * 60 * 1000;
+const trendingCache = makeTtlCache<TmdbListItem[]>(4);
+
 async function tmdbFetch<T>(path: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`${TMDB_API_BASE}${path}`);
   for (const [key, value] of Object.entries(params)) {
@@ -82,15 +120,24 @@ function normalizeMulti(item: RawMultiSearchResult): TmdbListItem | null {
 }
 
 export async function searchTitles(query: string): Promise<TmdbListItem[]> {
-  if (!query.trim()) return [];
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const cacheKey = trimmed.toLowerCase();
+  const cached = searchCache.get(cacheKey);
+  if (cached) return cached;
+
   const data = await tmdbFetch<{ results: RawMultiSearchResult[] }>("/search/multi", {
-    query,
+    query: trimmed,
     include_adult: "false",
   });
-  return data.results
+  const results = data.results
     .map(normalizeMulti)
     .filter((item): item is TmdbListItem => item !== null)
     .sort((a, b) => b.voteAverage - a.voteAverage);
+
+  searchCache.set(cacheKey, results, SEARCH_CACHE_TTL_MS);
+  return results;
 }
 
 interface RawWatchProviderRegion {
@@ -159,8 +206,12 @@ export async function getDetails(tmdbId: number, mediaType: MediaType): Promise<
 }
 
 export async function getTrending(window: "day" | "week" = "week"): Promise<TmdbListItem[]> {
+  const cached = trendingCache.get(window);
+  if (cached) return cached;
+
   const data = await tmdbFetch<{ results: RawMultiSearchResult[] }>(`/trending/all/${window}`);
-  return data.results
-    .map(normalizeMulti)
-    .filter((item): item is TmdbListItem => item !== null);
+  const results = data.results.map(normalizeMulti).filter((item): item is TmdbListItem => item !== null);
+
+  trendingCache.set(window, results, TRENDING_CACHE_TTL_MS);
+  return results;
 }
