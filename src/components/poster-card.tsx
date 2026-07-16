@@ -26,6 +26,8 @@ interface PosterCardProps {
   runtime?: number | null;
   mediaType: "MOVIE" | "TV";
   watchUrl: string | null;
+  /** When set, clicking the card opens this internal detail page instead of the external watch link. */
+  detailHref?: string;
   actions?: ReactNode;
   priority?: boolean;
   myRating?: number | null;
@@ -43,6 +45,7 @@ export function PosterCard({
   runtime,
   mediaType,
   watchUrl,
+  detailHref,
   actions,
   priority,
   myRating,
@@ -67,9 +70,10 @@ export function PosterCard({
 
   return (
     <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
+      href={detailHref ?? href}
+      // Internal detail page opens in-app; the external watch fallback opens in a new tab.
+      target={detailHref ? undefined : "_blank"}
+      rel={detailHref ? undefined : "noopener noreferrer"}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="group relative block aspect-2/3 w-full overflow-hidden rounded-xl bg-surface shadow-lg shadow-black/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"

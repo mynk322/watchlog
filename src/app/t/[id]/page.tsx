@@ -9,6 +9,7 @@ import { StarRating } from "@/components/star-rating";
 import { RatingBadge } from "@/components/rating-badge";
 import { ShareButton } from "@/components/share-button";
 import { ReviewSection } from "@/components/review-section";
+import { CastList } from "@/components/cast-list";
 import { PublicReviewList } from "@/components/public-review-list";
 import { FeaturesCarousel } from "@/components/features-carousel";
 import { AddToWatchlistButton } from "@/components/add-to-watchlist-button";
@@ -18,6 +19,7 @@ import { getPublicTitleReviews } from "@/lib/public-title";
 import { isFavorited } from "@/lib/favorites";
 import { formatRuntime } from "@/lib/utils";
 import { googleSearchUrl } from "@/lib/tmdb-shared";
+import type { CastMemberDTO, DirectorCreditDTO } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -141,6 +143,13 @@ export default async function TitlePage({ params }: { params: Promise<{ id: stri
             />
           </div>
         </div>
+      </div>
+
+      <div className="px-4 pb-10 sm:px-8">
+        <CastList
+          cast={(title.topCast as unknown as CastMemberDTO[] | null) ?? null}
+          directors={(title.directors as unknown as DirectorCreditDTO[] | null) ?? null}
+        />
       </div>
 
       <div className="px-4 pb-16 sm:px-8">

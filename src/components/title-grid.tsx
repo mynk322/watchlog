@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Eye, Bookmark, Trash2, Plus, SkipForward, PenLine } from "lucide-react";
+import { Eye, Bookmark, Trash2, Plus, SkipForward } from "lucide-react";
 import { PosterCard } from "./poster-card";
 import { PillButton } from "./pill-button";
 import { ShareButton } from "./share-button";
@@ -77,7 +76,6 @@ export function TitleGrid({
   const { titles, loading, updateStatus, removeTitle, updateRating, updateProgress } = useTitles(status);
   const [sortKey, setSortKey] = useState<SortKey>(() => resolveInitialSortKey(status, initialSortKey));
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
-  const router = useRouter();
 
   function changeSortKey(key: SortKey) {
     setSortKey(key);
@@ -142,6 +140,7 @@ export function TitleGrid({
         runtime={item.runtime}
         mediaType={item.mediaType}
         watchUrl={item.watchUrl}
+        detailHref={`/t/${item.id}`}
         myRating={status === "WATCHED" ? item.rating : undefined}
         onRateChange={status === "WATCHED" ? (value) => updateRating(item.id, value) : undefined}
         progress={
@@ -195,11 +194,6 @@ export function TitleGrid({
             )}
             <PillButton icon={<Trash2 size={12} />} onClick={() => removeTitle(item.id)}>
               Remove
-            </PillButton>
-            {/* Opens the title's detail page, where the rating + review form lives. Uses the router
-                (not a Link) because the tile is already an <a>, and nesting anchors is invalid. */}
-            <PillButton icon={<PenLine size={12} />} onClick={() => router.push(`/t/${item.id}`)}>
-              Review
             </PillButton>
             <ShareButton
               variant="pill"
