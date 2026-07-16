@@ -128,6 +128,24 @@ export interface CommentDTO {
   isOwn: boolean;
 }
 
+/** A recent review shown on the public home ("what people are watching"). */
+export interface RecentReviewDTO {
+  id: string;
+  rating: number | null;
+  body: string;
+  createdAt: string;
+  author: { displayName: string; handle: string };
+  title: {
+    tmdbId: number;
+    mediaType: MediaType;
+    title: string;
+    posterUrl: string | null;
+    releaseYear: number | null;
+    /** Any user's Title row id for this title, so the card can link to the public /t/[id] page. */
+    titleId: string | null;
+  };
+}
+
 /** A title pinned to a profile's favorites. Metadata is snapshotted at pin time. */
 export interface FavoriteTitleDTO {
   tmdbId: number;

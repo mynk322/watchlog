@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { TitleGrid } from "@/components/title-grid";
 import { DiscoverRow } from "@/components/discover-row";
 import { HeroPosterWall } from "@/components/hero-poster-wall";
+import { PublicHome } from "@/components/public-home";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,10 @@ async function getHeroPosters(userId: string) {
 }
 
 export default async function Home() {
-  const { userId } = await auth.protect();
+  const { userId } = await auth();
+  // Logged-out visitors get a browsable public landing instead of a bounce to sign-in.
+  if (!userId) return <PublicHome />;
+
   const [hero, heroPosters, settings] = await Promise.all([
     getHeroTitle(userId),
     getHeroPosters(userId),

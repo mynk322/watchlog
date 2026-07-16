@@ -1,10 +1,17 @@
 import "server-only";
 import type { ReviewModel } from "@/generated/prisma/models";
 import { prisma } from "./prisma";
-import { resolveReviewAuthors } from "./profile";
+import { resolveReviewAuthors, resolveAuthors } from "./profile";
 import { resolveLikes } from "./likes";
 import { toPublicReviewDTO, toReviewDTO } from "./dto";
-import type { MediaType, ProfileDTO, ProfileReviewDTO, PublicReviewDTO, ReviewDTO } from "./types";
+import type {
+  MediaType,
+  ProfileDTO,
+  ProfileReviewDTO,
+  PublicReviewDTO,
+  RecentReviewDTO,
+  ReviewDTO,
+} from "./types";
 
 export async function getReviewsForTitle(tmdbId: number, mediaType: MediaType, viewerId: string): Promise<ReviewDTO[]> {
   const reviews = await prisma.review.findMany({
@@ -22,6 +29,59 @@ export async function getReviewsForTitle(tmdbId: number, mediaType: MediaType, v
  * Reviews for a title, stripped of all author identity, for the logged-out public share page.
  * Skips the Clerk author/avatar resolution entirely — nothing identifying reaches the client.
  */
+/**
+ * Recent reviews across all users, for the logged-out home ("what people are watching"). Resolves
+ * the reviewed title's metadata + a public title id to link to, and the author's public identity
+ * (name/handle from the DB — no Clerk). Reviews whose author has no profile are skipped.
+ */
+export async function getRecentPublicReviews(limit = 12): Promise<RecentReviewDTO[]> {
+  const reviews = await prisma.review.findMany({ orderBy: { createdAt: "desc" }, take: limit * 2 });
+  if (reviews.length === 0) return [];
+
+  const authors = await resolveAuthors(reviews.map((r) => r.userId));
+
+  const distinctKeys = [...new Map(reviews.map((r) => [titleKey(r.tmdbId, r.mediaType), r])).values()];
+  const titleRows = await prisma.title.findMany({
+    where: { OR: distinctKeys.map((r) => ({ tmdbId: r.tmdbId, mediaType: r.mediaType })) },
+    select: { id: true, tmdbId: true, mediaType: true, title: true, releaseYear: true, posterUrl: true },
+  });
+  const metaByKey = new Map<
+    string,
+    { id: string; title: string; releaseYear: number | null; posterUrl: string | null }
+  >();
+  for (const t of titleRows) {
+    const key = titleKey(t.tmdbId, t.mediaType);
+    const existing = metaByKey.get(key);
+    if (!existing || (!existing.posterUrl && t.posterUrl)) {
+      metaByKey.set(key, { id: t.id, title: t.title, releaseYear: t.releaseYear, posterUrl: t.posterUrl });
+    }
+  }
+
+  const out: RecentReviewDTO[] = [];
+  for (const r of reviews) {
+    const author = authors.get(r.userId);
+    if (!author) continue; // no public profile → skip
+    const meta = metaByKey.get(titleKey(r.tmdbId, r.mediaType));
+    out.push({
+      id: r.id,
+      rating: r.rating,
+      body: r.body,
+      createdAt: r.createdAt.toISOString(),
+      author,
+      title: {
+        tmdbId: r.tmdbId,
+        mediaType: r.mediaType,
+        title: meta?.title ?? "a title",
+        posterUrl: meta?.posterUrl ?? null,
+        releaseYear: meta?.releaseYear ?? null,
+        titleId: meta?.id ?? null,
+      },
+    });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 export async function getPublicReviewsForTitle(tmdbId: number, mediaType: MediaType): Promise<PublicReviewDTO[]> {
   const reviews = await prisma.review.findMany({
     where: { tmdbId, mediaType },

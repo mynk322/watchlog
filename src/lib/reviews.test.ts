@@ -16,13 +16,17 @@ vi.mock("@/lib/profile", () => ({
       unique.map((id) => [id, { userId: id, displayName: `Name ${id}`, handle: `handle-${id}`, avatarUrl: null }])
     );
   }),
+  resolveAuthors: vi.fn(async (ids: string[]) => {
+    const unique = [...new Set(ids)];
+    return new Map(unique.map((id) => [id, { displayName: `Name ${id}`, handle: `handle-${id}` }]));
+  }),
 }));
 
 // Like resolution is exercised in likes.test.ts; here it's an empty map so DTOs fall back to zero likes.
 vi.mock("@/lib/likes", () => ({ resolveLikes: vi.fn(async () => new Map()) }));
 
 import { prisma } from "@/lib/prisma";
-import { getFeedReviews, getProfilePage, getPublicReviewsForTitle } from "./reviews";
+import { getFeedReviews, getProfilePage, getPublicReviewsForTitle, getRecentPublicReviews } from "./reviews";
 
 const followMock = prisma.follow as unknown as Record<string, Mock>;
 const reviewMock = prisma.review as unknown as Record<string, Mock>;
@@ -139,5 +143,29 @@ describe("getPublicReviewsForTitle", () => {
       where: { tmdbId: 55, mediaType: "TV" },
       orderBy: { createdAt: "desc" },
     });
+  });
+});
+
+describe("getRecentPublicReviews", () => {
+  it("resolves title metadata + a linkable title id and public author identity", async () => {
+    reviewMock.findMany.mockResolvedValue([makeReview({ id: "r1", userId: "authorA", tmdbId: 10, mediaType: "MOVIE" })]);
+    titleMock.findMany.mockResolvedValue([
+      { id: "t-10", tmdbId: 10, mediaType: "MOVIE", title: "Movie 10", releaseYear: 2010, posterUrl: "/p.jpg" },
+    ]);
+    const out = await getRecentPublicReviews(5);
+    expect(out[0]).toMatchObject({
+      id: "r1",
+      author: { handle: "handle-authorA" },
+      title: { title: "Movie 10", titleId: "t-10", posterUrl: "/p.jpg" },
+    });
+    expect(out[0].author).not.toHaveProperty("userId"); // no PII beyond public name/handle
+  });
+
+  it("skips reviews whose author has no public profile", async () => {
+    const profile = await import("./profile");
+    (profile.resolveAuthors as unknown as Mock).mockResolvedValueOnce(new Map());
+    reviewMock.findMany.mockResolvedValue([makeReview({ id: "r2", userId: "ghost" })]);
+    titleMock.findMany.mockResolvedValue([]);
+    expect(await getRecentPublicReviews(5)).toEqual([]);
   });
 });
