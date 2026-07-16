@@ -1,16 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bookmark, Eye, Check } from "lucide-react";
 import { PosterCard } from "./poster-card";
 import { PillButton } from "./pill-button";
 import type { TrendingDTO, TitleStatus } from "@/lib/types";
 
-// Start tight ("fewer for me"), reveal more on demand. Beyond the visible set we render a faded
-// teaser of what's next so it's clear there's more to load.
-const INITIAL_VISIBLE = 6;
-const STEP = 6;
-const FADE_AHEAD = 6;
+const INITIAL_VISIBLE = 12;
+const STEP = 12;
 
 export function RecommendationsRow() {
   const [items, setItems] = useState<TrendingDTO[]>([]);
@@ -18,6 +15,7 @@ export function RecommendationsRow() {
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<string | null>(null);
   const [visible, setVisible] = useState(INITIAL_VISIBLE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +33,21 @@ export function RecommendationsRow() {
       cancelled = true;
     };
   }, []);
+
+  // Infinite scroll: reveal the next batch as the sentinel (the "Load more" row) nears the viewport.
+  // Re-observing when `visible` changes lets it keep filling while the sentinel stays on screen.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) setVisible((v) => Math.min(v + STEP, items.length));
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [items.length, visible]);
 
   async function addTitle(item: TrendingDTO, status: TitleStatus) {
     const key = `${item.tmdbId}-${item.mediaType}`;
@@ -111,12 +124,14 @@ export function RecommendationsRow() {
   }
 
   if (items.length === 0) {
-    return <p className="text-sm text-muted">Rate a few titles you&rsquo;ve watched and recommendations will show up here.</p>;
+    return (
+      <p className="text-sm text-muted">
+        Rate a few titles you&rsquo;ve watched and recommendations will show up here.
+      </p>
+    );
   }
 
-  const shown = items.slice(0, visible);
-  const teaser = items.slice(visible, visible + FADE_AHEAD);
-  const remaining = items.length - visible;
+  const hasMore = visible < items.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -125,23 +140,19 @@ export function RecommendationsRow() {
       </p>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
-        {shown.map(renderCard)}
-        {/* Faded, non-interactive preview of what "Show more" will load. */}
-        {teaser.map((item) => (
-          <div key={`teaser-${item.tmdbId}-${item.mediaType}`} className="pointer-events-none opacity-40">
-            {renderCard(item)}
-          </div>
-        ))}
+        {items.slice(0, visible).map(renderCard)}
       </div>
 
-      {remaining > 0 && (
-        <div className="flex justify-center">
+      {/* The sentinel doubles as the manual control: scrolling to it auto-loads (infinite scroll),
+          and it's still clickable for anyone who prefers to. */}
+      {hasMore && (
+        <div ref={sentinelRef} className="flex justify-center pt-2">
           <button
             type="button"
-            onClick={() => setVisible((v) => v + STEP)}
+            onClick={() => setVisible((v) => Math.min(v + STEP, items.length))}
             className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-elevated cursor-pointer"
           >
-            Show {Math.min(STEP, remaining)} more
+            Load more
           </button>
         </div>
       )}
