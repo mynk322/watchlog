@@ -1,45 +1,16 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { getTrending } from "@/lib/tmdb";
+import { getTrendingItems } from "@/lib/trending";
 import type { TrendingDTO } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function populateTrendingCache() {
-  const trending = await getTrending("week");
-  const rows = trending.slice(0, 24).map((t) => ({
-    tmdbId: t.tmdbId,
-    mediaType: t.mediaType === "tv" ? ("TV" as const) : ("MOVIE" as const),
-    title: t.title,
-    releaseYear: t.releaseYear,
-    posterUrl: t.posterUrl,
-    backdropUrl: t.backdropUrl,
-    overview: t.overview,
-    voteAverage: t.voteAverage,
-  }));
-  await prisma.$transaction([
-    prisma.trendingItem.deleteMany({}),
-    ...(rows.length > 0 ? [prisma.trendingItem.createMany({ data: rows })] : []),
-  ]);
-}
-
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  let items = await prisma.trendingItem.findMany({ orderBy: { voteAverage: "desc" } });
-
-  // First load before any cron run has populated the cache yet: fetch live so the
-  // Discover row isn't empty for up to 6 hours.
-  if (items.length === 0) {
-    try {
-      await populateTrendingCache();
-      items = await prisma.trendingItem.findMany({ orderBy: { voteAverage: "desc" } });
-    } catch {
-      return Response.json({ items: [] });
-    }
-  }
+  const items = await getTrendingItems();
 
   const existing = await prisma.title.findMany({
     where: { userId, OR: items.map((i) => ({ tmdbId: i.tmdbId, mediaType: i.mediaType })) },

@@ -3,16 +3,36 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { searchTitles } from "@/lib/tmdb";
 import { parseYear } from "@/lib/tmdb-shared";
+import { rateLimit } from "@/lib/rate-limit";
 import type { SearchResultDTO } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// Guests can browse-search, but not unlimited — signed-in users are unthrottled.
+const GUEST_SEARCH_LIMIT = 10;
+const GUEST_SEARCH_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
+function clientIp(request: NextRequest): string {
+  const fwd = request.headers.get("x-forwarded-for");
+  return fwd?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+}
 
 export async function GET(request: NextRequest) {
   // Public: logged-out visitors can search too. When signed in we also annotate which results are
   // already in their collection; for a guest there's nothing to annotate (the browser ghost store
   // tracks that client-side instead).
   const { userId } = await auth();
+
+  if (!userId) {
+    const { allowed } = rateLimit(`search:${clientIp(request)}`, GUEST_SEARCH_LIMIT, GUEST_SEARCH_WINDOW_MS);
+    if (!allowed) {
+      return Response.json(
+        { error: "Search limit reached. Sign up free to keep searching.", limited: true },
+        { status: 429 }
+      );
+    }
+  }
 
   const q = request.nextUrl.searchParams.get("q") ?? "";
   if (!q.trim()) {

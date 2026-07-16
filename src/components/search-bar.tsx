@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { Search, Plus, Check, Loader2, X } from "lucide-react";
 import type { SearchResultDTO, TitleStatus } from "@/lib/types";
@@ -40,6 +41,7 @@ export function SearchBar() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [limitedMessage, setLimitedMessage] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // Session-lived cache: re-typing or backspacing back to an already-seen query skips the network entirely.
   const cacheRef = useRef<Map<string, SearchResultDTO[]>>(new Map());
@@ -87,6 +89,13 @@ export function SearchBar() {
         const params = new URLSearchParams({ q: trimmed });
         if (year) params.set("year", String(year));
         const res = await fetch(`/api/search?${params}`, { signal: controller.signal });
+        if (res.status === 429) {
+          const payload = await res.json().catch(() => null);
+          setLimitedMessage(payload?.error ?? "Search limit reached. Sign up free to keep searching.");
+          setResults([]);
+          return;
+        }
+        setLimitedMessage(null);
         const data = await res.json();
         const found: SearchResultDTO[] = data.results ?? [];
         if (cacheRef.current.size >= CLIENT_CACHE_MAX_ENTRIES) {
@@ -209,7 +218,18 @@ export function SearchBar() {
             </select>
           </div>
 
-          {sortedResults.length === 0 && !loading && (
+          {limitedMessage && (
+            <div className="flex flex-col gap-2 p-4">
+              <p className="text-sm text-foreground">{limitedMessage}</p>
+              <Link
+                href="/sign-up"
+                className="self-start rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-accent-foreground transition-opacity hover:opacity-90"
+              >
+                Sign up free
+              </Link>
+            </div>
+          )}
+          {!limitedMessage && sortedResults.length === 0 && !loading && (
             <p className="p-4 text-sm text-muted">No matches on TMDB for &ldquo;{query}&rdquo;.</p>
           )}
           {sortedResults.map((item) => {

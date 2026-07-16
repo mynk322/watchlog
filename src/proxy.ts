@@ -1,6 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isPublicRoute = createRouteMatcher([
+  "/", // the home page is a public, browsable landing when logged out
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/cron/refresh",
