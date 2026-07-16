@@ -34,7 +34,12 @@ export function toTitleDTO(title: TitleModel): TitleDTO {
   };
 }
 
-export function toReviewDTO(review: ReviewModel, author: ResolvedAuthor, viewerId: string): ReviewDTO {
+export function toReviewDTO(
+  review: ReviewModel,
+  author: ResolvedAuthor,
+  viewerId: string,
+  likes: { count: number; likedByViewer: boolean } = { count: 0, likedByViewer: false }
+): ReviewDTO {
   return {
     id: review.id,
     tmdbId: review.tmdbId,
@@ -45,5 +50,7 @@ export function toReviewDTO(review: ReviewModel, author: ResolvedAuthor, viewerI
     updatedAt: review.updatedAt.toISOString(),
     author,
     isOwn: review.userId === viewerId,
+    likeCount: likes.count,
+    likedByViewer: likes.likedByViewer,
   };
 }

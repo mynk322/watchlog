@@ -18,6 +18,9 @@ vi.mock("@/lib/profile", () => ({
   }),
 }));
 
+// Like resolution is exercised in likes.test.ts; here it's an empty map so DTOs fall back to zero likes.
+vi.mock("@/lib/likes", () => ({ resolveLikes: vi.fn(async () => new Map()) }));
+
 import { prisma } from "@/lib/prisma";
 import { getFeedReviews, getProfilePage } from "./reviews";
 

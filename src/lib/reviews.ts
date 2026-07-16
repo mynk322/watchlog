@@ -2,6 +2,7 @@ import "server-only";
 import type { ReviewModel } from "@/generated/prisma/models";
 import { prisma } from "./prisma";
 import { resolveReviewAuthors } from "./profile";
+import { resolveLikes } from "./likes";
 import { toReviewDTO } from "./dto";
 import type { MediaType, ProfileDTO, ProfileReviewDTO, ReviewDTO } from "./types";
 
@@ -10,8 +11,11 @@ export async function getReviewsForTitle(tmdbId: number, mediaType: MediaType, v
     where: { tmdbId, mediaType },
     orderBy: { createdAt: "desc" },
   });
-  const authors = await resolveReviewAuthors(reviews.map((r) => r.userId));
-  return reviews.map((r) => toReviewDTO(r, authors.get(r.userId)!, viewerId));
+  const [authors, likes] = await Promise.all([
+    resolveReviewAuthors(reviews.map((r) => r.userId)),
+    resolveLikes(reviews.map((r) => r.id), viewerId),
+  ]);
+  return reviews.map((r) => toReviewDTO(r, authors.get(r.userId)!, viewerId, likes.get(r.id)));
 }
 
 function titleKey(tmdbId: number, mediaType: MediaType): string {
@@ -27,13 +31,15 @@ function titleKey(tmdbId: number, mediaType: MediaType): string {
 async function buildProfileReviews(reviews: ReviewModel[], viewerId: string): Promise<ProfileReviewDTO[]> {
   if (reviews.length === 0) return [];
 
-  const authors = await resolveReviewAuthors(reviews.map((r) => r.userId));
-
   const distinctKeys = [...new Map(reviews.map((r) => [titleKey(r.tmdbId, r.mediaType), r])).values()];
-  const titleRows = await prisma.title.findMany({
-    where: { OR: distinctKeys.map((r) => ({ tmdbId: r.tmdbId, mediaType: r.mediaType })) },
-    select: { id: true, userId: true, tmdbId: true, mediaType: true, title: true, releaseYear: true, posterUrl: true },
-  });
+  const [authors, likes, titleRows] = await Promise.all([
+    resolveReviewAuthors(reviews.map((r) => r.userId)),
+    resolveLikes(reviews.map((r) => r.id), viewerId),
+    prisma.title.findMany({
+      where: { OR: distinctKeys.map((r) => ({ tmdbId: r.tmdbId, mediaType: r.mediaType })) },
+      select: { id: true, userId: true, tmdbId: true, mediaType: true, title: true, releaseYear: true, posterUrl: true },
+    }),
+  ]);
 
   const metaByKey = new Map<string, { title: string; releaseYear: number | null; posterUrl: string | null }>();
   const viewerTitleIdByKey = new Map<string, string>();
@@ -51,7 +57,7 @@ async function buildProfileReviews(reviews: ReviewModel[], viewerId: string): Pr
     const key = titleKey(r.tmdbId, r.mediaType);
     const meta = metaByKey.get(key);
     return {
-      ...toReviewDTO(r, authors.get(r.userId)!, viewerId),
+      ...toReviewDTO(r, authors.get(r.userId)!, viewerId, likes.get(r.id)),
       title: {
         tmdbId: r.tmdbId,
         mediaType: r.mediaType,

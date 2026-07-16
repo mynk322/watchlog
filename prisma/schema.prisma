@@ -93,6 +93,15 @@ model Follow {
   @@index([followingId])
 }
 
+model ReviewLike {
+  userId    String // Clerk userId of the liker
+  reviewId  String // Review.id — not a DB FK (Review has no relations); likes are cleaned up on review delete
+  createdAt DateTime @default(now())
+
+  @@id([userId, reviewId])
+  @@index([reviewId])
+}
+
 model SearchCache {
   id        String   @id @default(cuid())
   query     String   @unique

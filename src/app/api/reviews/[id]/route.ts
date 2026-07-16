@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveReviewAuthors } from "@/lib/profile";
+import { resolveLikes, deleteLikesForReview } from "@/lib/likes";
 import { toReviewDTO } from "@/lib/dto";
 import { isValidRating } from "@/lib/validation";
 
@@ -41,8 +42,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   try {
     const review = await prisma.review.update({ where: { id, userId }, data });
-    const authors = await resolveReviewAuthors([userId]);
-    return Response.json({ review: toReviewDTO(review, authors.get(userId)!, userId) });
+    const [authors, likes] = await Promise.all([resolveReviewAuthors([userId]), resolveLikes([review.id], userId)]);
+    return Response.json({ review: toReviewDTO(review, authors.get(userId)!, userId, likes.get(review.id)) });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
       return Response.json({ error: "Review not found" }, { status: 404 });
@@ -59,6 +60,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   const { id } = await params;
   try {
     await prisma.review.delete({ where: { id, userId } });
+    await deleteLikesForReview(id); // no DB cascade — drop orphaned likes
     return new Response(null, { status: 204 });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {

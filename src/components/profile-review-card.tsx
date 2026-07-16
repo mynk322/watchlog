@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Film, Tv, User } from "lucide-react";
 import { StarRating } from "./star-rating";
+import { LikeButton } from "./like-button";
 import { formatRelativeTime } from "@/lib/utils";
 import type { ProfileReviewDTO } from "@/lib/types";
 
@@ -78,12 +79,15 @@ export function ProfileReviewCard({ review, showAuthor = false }: ProfileReviewC
             </div>
           )}
           <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{review.body}</p>
-          <p className="mt-2 text-xs text-muted">
-            <time dateTime={review.createdAt} suppressHydrationWarning>
-              {formatRelativeTime(review.createdAt)}
-            </time>
-            {wasEdited(review) && <span className="text-muted/70"> · edited</span>}
-          </p>
+          <div className="mt-2 flex items-center gap-3">
+            <LikeButton reviewId={review.id} initialLiked={review.likedByViewer} initialCount={review.likeCount} />
+            <p className="text-xs text-muted">
+              <time dateTime={review.createdAt} suppressHydrationWarning>
+                {formatRelativeTime(review.createdAt)}
+              </time>
+              {wasEdited(review) && <span className="text-muted/70"> · edited</span>}
+            </p>
+          </div>
         </div>
       </div>
     </div>

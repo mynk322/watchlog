@@ -102,6 +102,9 @@ export interface ReviewDTO {
   author: ReviewAuthorDTO;
   /** True when the review belongs to the requesting user — lets the client show edit/delete affordances. */
   isOwn: boolean;
+  likeCount: number;
+  /** Whether the requesting user has liked this review. */
+  likedByViewer: boolean;
 }
 
 /** A review shown on a profile page or feed: the base review (which carries its author) plus the title it's about. */

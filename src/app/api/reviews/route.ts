@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { ensureProfile, resolveReviewAuthors } from "@/lib/profile";
+import { resolveLikes } from "@/lib/likes";
 import { toReviewDTO } from "@/lib/dto";
 import { getReviewsForTitle } from "@/lib/reviews";
 import { isValidRating } from "@/lib/validation";
@@ -57,6 +58,6 @@ export async function POST(request: NextRequest) {
     update: { rating, body: reviewBody },
   });
 
-  const authors = await resolveReviewAuthors([userId]);
-  return Response.json({ review: toReviewDTO(review, authors.get(userId)!, userId) }, { status: 201 });
+  const [authors, likes] = await Promise.all([resolveReviewAuthors([userId]), resolveLikes([review.id], userId)]);
+  return Response.json({ review: toReviewDTO(review, authors.get(userId)!, userId, likes.get(review.id)) }, { status: 201 });
 }
