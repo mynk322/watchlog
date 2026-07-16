@@ -27,13 +27,14 @@ function ownedKey(tmdbId: number, mediaType: MediaType): string {
 const PROFILE_REC_LIMIT = 12;
 
 /**
- * Recommendations surfaced on someone's profile: titles the profile owner rated highly (their own
- * Title ratings), that the viewer hasn't added, ranked by how well they match the viewer's taste.
- * Taste = the viewer's genre affinity (their watched titles' genres, weighted by rating); a
- * candidate's score blends the owner's rating (60%) with that genre match (40%). Logged-out or
- * taste-less viewers just get the owner's highest-rated. Returns [] for your own profile or when
- * the owner has rated nothing / the viewer already has it all. Every item carries the owner's
- * Title id so the card links to the public title page.
+ * Recommendations surfaced on someone's profile: titles the owner has PUBLICLY REVIEWED with a star
+ * rating (never their private collection), that the viewer hasn't added, ranked by how well they
+ * match the viewer's taste. Taste = the viewer's genre affinity (their watched titles' genres,
+ * weighted by rating); a candidate's score blends the owner's review rating (60%) with that genre
+ * match (40%). Logged-out / taste-less viewers get the owner's highest-rated. Returns [] for your
+ * own profile, when the owner has no rated reviews, or when the viewer already has them all. Review
+ * rows carry no poster/genres, so those (and a linkable Title id) are resolved from any user's
+ * Title row; a review with no surviving Title row anywhere is skipped (nothing to show/link).
  */
 export async function getProfileRecommendations(
   profileUserId: string,
@@ -41,12 +42,12 @@ export async function getProfileRecommendations(
 ): Promise<ProfileRecommendationDTO[]> {
   if (viewerId && viewerId === profileUserId) return []; // don't recommend a profile to itself
 
-  const ownerTitles = await prisma.title.findMany({
-    where: { userId: profileUserId, status: "WATCHED", rating: { not: null } },
-    select: { id: true, tmdbId: true, mediaType: true, title: true, posterUrl: true, releaseYear: true, rating: true, genres: true },
+  const reviews = await prisma.review.findMany({
+    where: { userId: profileUserId, rating: { not: null } },
+    select: { tmdbId: true, mediaType: true, rating: true },
     orderBy: { rating: "desc" },
   });
-  if (ownerTitles.length === 0) return [];
+  if (reviews.length === 0) return [];
 
   // Viewer taste: exclude what they already have, and build a genre-affinity map from their titles.
   const viewerOwnedKeys = new Set<string>();
@@ -63,30 +64,52 @@ export async function getProfileRecommendations(
     }
   }
 
-  const candidates = ownerTitles.filter((t) => !viewerOwnedKeys.has(ownedKey(t.tmdbId, t.mediaType)));
+  const candidates = reviews.filter((r) => !viewerOwnedKeys.has(ownedKey(r.tmdbId, r.mediaType)));
   if (candidates.length === 0) return [];
 
-  const rawGenre = candidates.map((c) => c.genres.reduce((sum, g) => sum + (genreAffinity.get(g) ?? 0), 0));
+  // Reviews store no poster/genres — resolve display metadata + a linkable id from any Title row.
+  const titleRows = await prisma.title.findMany({
+    where: { OR: candidates.map((r) => ({ tmdbId: r.tmdbId, mediaType: r.mediaType })) },
+    select: { id: true, tmdbId: true, mediaType: true, title: true, posterUrl: true, releaseYear: true, genres: true },
+  });
+  const metaByKey = new Map<
+    string,
+    { id: string; title: string; posterUrl: string | null; releaseYear: number | null; genres: string[] }
+  >();
+  for (const t of titleRows) {
+    const key = ownedKey(t.tmdbId, t.mediaType);
+    const existing = metaByKey.get(key);
+    if (!existing || (!existing.posterUrl && t.posterUrl)) {
+      metaByKey.set(key, { id: t.id, title: t.title, posterUrl: t.posterUrl, releaseYear: t.releaseYear, genres: t.genres });
+    }
+  }
+
+  const withMeta = candidates
+    .map((r) => ({ r, meta: metaByKey.get(ownedKey(r.tmdbId, r.mediaType)) }))
+    .filter((x): x is { r: (typeof candidates)[number]; meta: NonNullable<typeof x.meta> } => x.meta != null);
+  if (withMeta.length === 0) return [];
+
+  const rawGenre = withMeta.map((x) => x.meta.genres.reduce((sum, g) => sum + (genreAffinity.get(g) ?? 0), 0));
   const maxGenre = Math.max(0, ...rawGenre);
 
-  return candidates
-    .map((c, i) => {
-      const ownerScore = (c.rating ?? 0) / 5;
+  return withMeta
+    .map((x, i) => {
+      const ownerScore = (x.r.rating ?? 0) / 5;
       const genreBoost = maxGenre > 0 ? rawGenre[i] / maxGenre : 0;
       // Blend owner rating + viewer taste; with no taste signal, rank purely by the owner's rating.
       const score = maxGenre > 0 ? ownerScore * 0.6 + genreBoost * 0.4 : ownerScore;
-      return { c, score };
+      return { x, score };
     })
-    .sort((a, b) => b.score - a.score || (b.c.rating ?? 0) - (a.c.rating ?? 0))
+    .sort((a, b) => b.score - a.score || (b.x.r.rating ?? 0) - (a.x.r.rating ?? 0))
     .slice(0, PROFILE_REC_LIMIT)
-    .map(({ c }) => ({
-      tmdbId: c.tmdbId,
-      mediaType: c.mediaType,
-      title: c.title,
-      posterUrl: c.posterUrl,
-      releaseYear: c.releaseYear,
-      titleId: c.id,
-      ownerRating: c.rating!,
+    .map(({ x }) => ({
+      tmdbId: x.r.tmdbId,
+      mediaType: x.r.mediaType,
+      title: x.meta.title,
+      posterUrl: x.meta.posterUrl,
+      releaseYear: x.meta.releaseYear,
+      titleId: x.meta.id,
+      ownerRating: x.r.rating!,
     }));
 }
 

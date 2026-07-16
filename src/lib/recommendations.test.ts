@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 
-vi.mock("@/lib/prisma", () => ({ prisma: { title: { findMany: vi.fn() } } }));
+vi.mock("@/lib/prisma", () => ({ prisma: { title: { findMany: vi.fn() }, review: { findMany: vi.fn() } } }));
 vi.mock("@/lib/tmdb", () => ({ getRecommendations: vi.fn() }));
 vi.mock("@/lib/trending", () => ({ getTrendingItems: vi.fn() }));
 
@@ -86,54 +86,65 @@ describe("getRecommendationsForUser", () => {
 });
 
 describe("getProfileRecommendations", () => {
-  const ownerTitle = (over = {}) => ({
-    id: "t?",
-    tmdbId: 1,
+  const reviewMock = (prisma as unknown as { review: Record<string, Mock> }).review;
+  const titleMeta = (id: string, tmdbId: number, genres: string[], title = `T${tmdbId}`) => ({
+    id,
+    tmdbId,
     mediaType: "MOVIE",
-    title: "A",
-    posterUrl: null,
+    title,
+    posterUrl: `/${id}.jpg`,
     releaseYear: 2020,
-    rating: 5,
-    genres: [],
-    ...over,
+    genres,
   });
 
   it("returns [] for your own profile without querying", async () => {
     expect(await getProfileRecommendations("me", "me")).toEqual([]);
-    expect(titleMock.findMany).not.toHaveBeenCalled();
+    expect(reviewMock.findMany).not.toHaveBeenCalled();
   });
 
-  it("returns [] when the owner has rated nothing", async () => {
-    titleMock.findMany.mockResolvedValueOnce([]); // owner titles
+  it("returns [] when the owner has no rated reviews", async () => {
+    reviewMock.findMany.mockResolvedValueOnce([]); // owner reviews (rating not null)
     expect(await getProfileRecommendations("owner", "viewer")).toEqual([]);
   });
 
-  it("ranks the owner's highly-rated titles, boosting genres the viewer likes, excluding owned", async () => {
-    // Owner rated two 5-star titles: a Drama and a Comedy.
-    titleMock.findMany.mockResolvedValueOnce([
-      ownerTitle({ id: "drama", tmdbId: 1, title: "Drama Pick", rating: 5, genres: ["Drama"] }),
-      ownerTitle({ id: "comedy", tmdbId: 2, title: "Comedy Pick", rating: 5, genres: ["Comedy"] }),
-      ownerTitle({ id: "seen", tmdbId: 3, title: "Already Seen", rating: 5, genres: ["Drama"] }),
+  it("recommends from the owner's rated reviews, boosting genres the viewer likes, excluding owned", async () => {
+    // Owner publicly reviewed three titles with 5 stars.
+    reviewMock.findMany.mockResolvedValueOnce([
+      { tmdbId: 1, mediaType: "MOVIE", rating: 5 },
+      { tmdbId: 2, mediaType: "MOVIE", rating: 5 },
+      { tmdbId: 3, mediaType: "MOVIE", rating: 5 },
     ]);
     // Viewer loves Comedy and already has title 3.
     titleMock.findMany.mockResolvedValueOnce([
       { tmdbId: 9, mediaType: "MOVIE", status: "WATCHED", rating: 5, genres: ["Comedy"] },
       { tmdbId: 3, mediaType: "MOVIE", status: "WATCHED", rating: 4, genres: ["Drama"] },
     ]);
+    // Title metadata for the remaining candidates (1 = Drama, 2 = Comedy).
+    titleMock.findMany.mockResolvedValueOnce([
+      titleMeta("drama", 1, ["Drama"], "Drama Pick"),
+      titleMeta("comedy", 2, ["Comedy"], "Comedy Pick"),
+    ]);
 
     const recs = await getProfileRecommendations("owner", "viewer");
     expect(recs.map((r) => r.titleId)).toEqual(["comedy", "drama"]); // Comedy boosted above Drama
     expect(recs.map((r) => r.tmdbId)).not.toContain(3); // viewer already has it → excluded
-    expect(recs[0]).toMatchObject({ titleId: "comedy", ownerRating: 5 });
+    expect(recs[0]).toMatchObject({ titleId: "comedy", ownerRating: 5, title: "Comedy Pick" });
   });
 
-  it("ranks purely by the owner's rating for a logged-out viewer (no viewer query)", async () => {
-    titleMock.findMany.mockResolvedValueOnce([
-      ownerTitle({ id: "hi", tmdbId: 1, rating: 5, genres: ["Drama"] }),
-      ownerTitle({ id: "lo", tmdbId: 2, rating: 3, genres: ["Comedy"] }),
+  it("skips a reviewed title with no surviving Title row (nothing to show/link)", async () => {
+    reviewMock.findMany.mockResolvedValueOnce([{ tmdbId: 7, mediaType: "MOVIE", rating: 5 }]);
+    titleMock.findMany.mockResolvedValueOnce([]); // no metadata rows anywhere
+    expect(await getProfileRecommendations("owner", null)).toEqual([]);
+  });
+
+  it("ranks purely by the owner's review rating for a logged-out viewer (no viewer-taste query)", async () => {
+    reviewMock.findMany.mockResolvedValueOnce([
+      { tmdbId: 1, mediaType: "MOVIE", rating: 5 },
+      { tmdbId: 2, mediaType: "MOVIE", rating: 3 },
     ]);
+    titleMock.findMany.mockResolvedValueOnce([titleMeta("hi", 1, ["Drama"]), titleMeta("lo", 2, ["Comedy"])]);
     const recs = await getProfileRecommendations("owner", null);
     expect(recs.map((r) => r.titleId)).toEqual(["hi", "lo"]);
-    expect(titleMock.findMany).toHaveBeenCalledTimes(1); // no viewer-taste query
+    expect(titleMock.findMany).toHaveBeenCalledTimes(1); // only the metadata query, no viewer query
   });
 });
