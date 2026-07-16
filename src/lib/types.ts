@@ -92,8 +92,11 @@ export interface ReviewTitleRefDTO {
   title: string;
   releaseYear: number | null;
   posterUrl: string | null;
-  /** The viewer's own Title row id, if they've added this title — lets the card link to /t/[id]. Null when the viewer hasn't added it. */
+  /** The viewer's own Title row id, if they've added this title. Null when the viewer hasn't added it. */
   viewerTitleId: string | null;
+  /** Best Title row id to link to (the viewer's own if present, otherwise any user's — /t/[id] is
+   *  public). Null only when no user has this title, so the card can always link when one exists. */
+  titleId: string | null;
 }
 
 export interface ReviewDTO {

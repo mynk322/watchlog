@@ -53,8 +53,8 @@ export function ProfileReviewCard({ review, showAuthor = false }: ProfileReviewC
         </Link>
       )}
       <div className="flex gap-4">
-        {title.viewerTitleId ? (
-          <Link href={`/t/${title.viewerTitleId}`} className="transition-opacity hover:opacity-80">
+        {title.titleId ? (
+          <Link href={`/t/${title.titleId}`} className="transition-opacity hover:opacity-80">
             {poster}
           </Link>
         ) : (
@@ -66,8 +66,8 @@ export function ProfileReviewCard({ review, showAuthor = false }: ProfileReviewC
             <span>{title.releaseYear ?? "—"}</span>
           </div>
           <p className="mt-0.5 truncate text-sm font-semibold text-foreground">
-            {title.viewerTitleId ? (
-              <Link href={`/t/${title.viewerTitleId}`} className="hover:underline">
+            {title.titleId ? (
+              <Link href={`/t/${title.titleId}`} className="hover:underline">
                 {title.title}
               </Link>
             ) : (

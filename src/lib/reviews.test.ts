@@ -77,16 +77,29 @@ describe("getFeedReviews", () => {
       releaseYear: 2010,
       posterUrl: "/p10.jpg",
       viewerTitleId: "t-viewer",
+      titleId: "t-viewer", // prefers the viewer's own row when present
     });
   });
 
-  it("degrades to 'Title unavailable' for a review whose title has no surviving row", async () => {
+  it("still links the title (via any user's row) when the viewer hasn't added it", async () => {
+    followMock.findMany.mockResolvedValue([{ followingId: "authorA" }]);
+    reviewMock.findMany.mockResolvedValue([makeReview()]);
+    titleMock.findMany.mockResolvedValue([
+      { id: "t-other", userId: "someoneElse", tmdbId: 10, mediaType: "MOVIE", title: "Movie 10", releaseYear: 2010, posterUrl: "/p.jpg" },
+    ]);
+
+    const feed = await getFeedReviews("viewer");
+    // Viewer owns nothing here, but the title page is public — so it's still clickable.
+    expect(feed[0].title).toMatchObject({ viewerTitleId: null, titleId: "t-other" });
+  });
+
+  it("degrades to 'Title unavailable' (no link) for a review whose title has no surviving row", async () => {
     followMock.findMany.mockResolvedValue([{ followingId: "authorA" }]);
     reviewMock.findMany.mockResolvedValue([makeReview({ tmdbId: 99, mediaType: "TV" })]);
     titleMock.findMany.mockResolvedValue([]); // orphaned review — every holder removed the title
 
     const feed = await getFeedReviews("viewer");
-    expect(feed[0].title).toMatchObject({ title: "Title unavailable", posterUrl: null, viewerTitleId: null });
+    expect(feed[0].title).toMatchObject({ title: "Title unavailable", posterUrl: null, viewerTitleId: null, titleId: null });
   });
 });
 

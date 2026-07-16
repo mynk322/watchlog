@@ -115,6 +115,7 @@ async function buildProfileReviews(reviews: ReviewModel[], viewerId: string | nu
 
   const metaByKey = new Map<string, { title: string; releaseYear: number | null; posterUrl: string | null }>();
   const viewerTitleIdByKey = new Map<string, string>();
+  const anyTitleIdByKey = new Map<string, string>();
   for (const t of titleRows) {
     const key = titleKey(t.tmdbId, t.mediaType);
     const existing = metaByKey.get(key);
@@ -122,12 +123,14 @@ async function buildProfileReviews(reviews: ReviewModel[], viewerId: string | nu
     if (!existing || (!existing.posterUrl && t.posterUrl)) {
       metaByKey.set(key, { title: t.title, releaseYear: t.releaseYear, posterUrl: t.posterUrl });
     }
+    if (!anyTitleIdByKey.has(key)) anyTitleIdByKey.set(key, t.id);
     if (viewerId && t.userId === viewerId) viewerTitleIdByKey.set(key, t.id);
   }
 
   return reviews.map((r) => {
     const key = titleKey(r.tmdbId, r.mediaType);
     const meta = metaByKey.get(key);
+    const viewerTitleId = viewerTitleIdByKey.get(key) ?? null;
     return {
       ...toReviewDTO(r, authors.get(r.userId)!, viewerId, likes.get(r.id)),
       title: {
@@ -136,7 +139,10 @@ async function buildProfileReviews(reviews: ReviewModel[], viewerId: string | nu
         title: meta?.title ?? "Title unavailable",
         releaseYear: meta?.releaseYear ?? null,
         posterUrl: meta?.posterUrl ?? null,
-        viewerTitleId: viewerTitleIdByKey.get(key) ?? null,
+        viewerTitleId,
+        // Link to the viewer's own row if they have it, otherwise any user's (the title page is
+        // public), so the title is clickable whenever some user has added it.
+        titleId: viewerTitleId ?? anyTitleIdByKey.get(key) ?? null,
       },
     };
   });

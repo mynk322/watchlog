@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers";
 import { USERS } from "./users";
+import { ALICE_TITLE_NAME } from "./global.setup";
 
 // The full social loop across two users. Serial: later steps depend on earlier ones.
 test.describe.serial("follow, like, comment, feed, notifications", () => {
@@ -45,12 +46,17 @@ test.describe.serial("follow, like, comment, feed, notifications", () => {
     await page.close();
   });
 
-  test("Bob's feed shows the followed user's review", async ({ browser }) => {
+  test("Bob's feed shows the followed user's review, and the title links to the title page", async ({ browser }) => {
     const page = await browser.newPage();
     await signIn(page, USERS.bob);
     await page.goto("/feed");
     await expect(page.getByText(reviewBody)).toBeVisible();
     await expect(page.getByText(`@${aliceHandle}`)).toBeVisible();
+
+    // The reviewed title is clickable even though Bob hasn't added it (links to any user's row).
+    await page.getByRole("link", { name: ALICE_TITLE_NAME }).first().click();
+    await expect(page).toHaveURL(/\/t\//);
+    await expect(page.getByRole("heading", { name: ALICE_TITLE_NAME })).toBeVisible();
     await page.close();
   });
 
