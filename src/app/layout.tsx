@@ -10,12 +10,17 @@ import "./globals.css";
 
 const clerkAppearance = {
   variables: {
+    // Map the text/background colors to the app's theme tokens (globals.css) so the Clerk widgets
+    // (sign-in/up, UserButton menu) follow light/dark — previously these were fixed dark values,
+    // making text invisible on the light-mode card. colorPrimary stays a concrete hex: Clerk does
+    // color math on it to fill the primary button, which breaks (renders transparent) with a var().
     colorPrimary: "#ff3b5c",
-    colorBackground: "#141417",
-    colorInputBackground: "#1c1c21",
-    colorText: "#f5f5f7",
-    colorTextSecondary: "#9a9aa3",
-    colorNeutral: "#f5f5f7",
+    colorBackground: "var(--surface)",
+    colorInputBackground: "var(--surface-elevated)",
+    colorText: "var(--foreground)",
+    colorInputText: "var(--foreground)",
+    colorTextSecondary: "var(--muted)",
+    colorNeutral: "var(--foreground)",
     borderRadius: "0.75rem",
   },
   elements: {
