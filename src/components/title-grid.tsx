@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, Bookmark, Trash2, Plus, SkipForward } from "lucide-react";
 import { PosterCard } from "./poster-card";
 import { PillButton } from "./pill-button";
@@ -8,6 +8,10 @@ import { ShareButton } from "./share-button";
 import { useTitles } from "@/hooks/use-titles";
 import type { TitleDTO, TitleStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+// Progressive reveal for large collections: show a batch, then infinite-scroll / "Load more".
+const INITIAL_VISIBLE = 24;
+const STEP = 24;
 
 type SortKey = "releaseYear" | "myRating" | "tmdbRating" | "dateAdded" | "dateWatched" | "titleAz";
 
@@ -76,9 +80,12 @@ export function TitleGrid({
   const { titles, loading, updateStatus, removeTitle, updateRating, updateProgress } = useTitles(status);
   const [sortKey, setSortKey] = useState<SortKey>(() => resolveInitialSortKey(status, initialSortKey));
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
+  const [visible, setVisible] = useState(INITIAL_VISIBLE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   function changeSortKey(key: SortKey) {
     setSortKey(key);
+    setVisible(INITIAL_VISIBLE); // re-sorting reorders everything — start from the top again
     const field = status === "WATCHED" ? "watchedSortKey" : "watchlistSortKey";
     fetch("/api/settings", {
       method: "PUT",
@@ -99,9 +106,29 @@ export function TitleGrid({
   }, [titles, selectedGenres]);
 
   const sorted = useMemo(() => sortTitles(filtered, sortKey), [filtered, sortKey]);
-  const grouped = useMemo(() => (sortKey === "releaseYear" ? groupByYear(sorted) : null), [sorted, sortKey]);
+  const visibleSorted = useMemo(() => sorted.slice(0, visible), [sorted, visible]);
+  const grouped = useMemo(
+    () => (sortKey === "releaseYear" ? groupByYear(visibleSorted) : null),
+    [visibleSorted, sortKey]
+  );
+
+  // Infinite scroll: reveal the next batch as the sentinel nears the viewport (re-observing on each
+  // reveal keeps it filling while the sentinel stays on screen). The button below is the same target.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) setVisible((v) => Math.min(v + STEP, sorted.length));
+      },
+      { rootMargin: "300px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [sorted.length, visible]);
 
   function toggleGenre(genre: string) {
+    setVisible(INITIAL_VISIBLE); // filtering changes the set — reset the reveal
     setSelectedGenres((prev) => {
       const next = new Set(prev);
       if (next.has(genre)) next.delete(genre);
@@ -252,7 +279,19 @@ export function TitleGrid({
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">{sorted.map(renderCard)}</div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">{visibleSorted.map(renderCard)}</div>
+      )}
+
+      {visible < sorted.length && (
+        <div ref={sentinelRef} className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setVisible((v) => Math.min(v + STEP, sorted.length))}
+            className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-elevated cursor-pointer"
+          >
+            Load more
+          </button>
+        </div>
       )}
     </div>
   );
