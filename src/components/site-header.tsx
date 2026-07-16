@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { UserButton } from "@clerk/nextjs";
 import { Clapperboard, Menu, X } from "lucide-react";
 import { SearchBar } from "./search-bar";
 import { ThemeToggle } from "./theme-toggle";
@@ -59,8 +60,9 @@ export function SiteHeader() {
         </div>
         <div className="flex flex-1 items-center gap-3 sm:justify-end">
           <SearchBar />
-          <div className="hidden sm:block">
+          <div className="hidden items-center gap-3 sm:flex">
             <ThemeToggle />
+            <UserButton />
           </div>
         </div>
       </div>
@@ -80,6 +82,10 @@ export function SiteHeader() {
           <div className="mt-1 flex items-center justify-between border-t border-border px-2 pt-3">
             <span className="text-sm text-muted">Theme</span>
             <ThemeToggle />
+          </div>
+          <div className="flex items-center justify-between border-t border-border px-2 pt-3">
+            <span className="text-sm text-muted">Account</span>
+            <UserButton />
           </div>
         </nav>
       )}

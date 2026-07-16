@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toTitleDTO } from "@/lib/dto";
@@ -18,6 +19,9 @@ function isValidEpisodeNumber(value: unknown): value is number {
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await params;
   const body = await request.json().catch(() => null);
 
@@ -49,6 +53,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.currentEpisode !== null && !isValidEpisodeNumber(body.currentEpisode)) {
       return Response.json({ error: "currentEpisode must be null or a positive integer" }, { status: 400 });
     }
+
+    if (body.currentEpisode !== null) {
+      const existing = await prisma.title.findUnique({
+        where: { id, userId },
+        select: { currentSeason: true, seasonEpisodeCounts: true },
+      });
+      if (!existing) return Response.json({ error: "Title not found" }, { status: 404 });
+
+      const effectiveSeason = body.currentSeason ?? existing.currentSeason ?? 1;
+      const cap = existing.seasonEpisodeCounts[effectiveSeason - 1];
+      if (cap !== undefined && body.currentEpisode > cap) {
+        return Response.json({ error: `currentEpisode exceeds season ${effectiveSeason}'s episode count (${cap})` }, { status: 400 });
+      }
+    }
+
     data.currentEpisode = body.currentEpisode;
   }
 
@@ -57,7 +76,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   try {
-    const title = await prisma.title.update({ where: { id }, data });
+    const title = await prisma.title.update({ where: { id, userId }, data });
     return Response.json({ title: toTitleDTO(title) });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
@@ -69,9 +88,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await params;
   try {
-    await prisma.title.delete({ where: { id } });
+    await prisma.title.delete({ where: { id, userId } });
     return new Response(null, { status: 204 });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {

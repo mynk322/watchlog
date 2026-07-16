@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.5.18",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "clsx": "^2.1.1",

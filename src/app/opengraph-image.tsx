@@ -1,18 +1,10 @@
 import { ImageResponse } from "next/og";
-import { prisma } from "@/lib/prisma";
 
 export const alt = "Watchlog — everything I've watched";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function Image() {
-  const recent = await prisma.title.findMany({
-    where: { status: "WATCHED", posterUrl: { not: null } },
-    orderBy: [{ watchedAt: "desc" }, { addedAt: "desc" }],
-    take: 5,
-    select: { posterUrl: true },
-  });
-
   return new ImageResponse(
     (
       <div
@@ -45,22 +37,6 @@ export default async function Image() {
             Every movie and series I&rsquo;ve watched, in one place.
           </span>
         </div>
-
-        {recent.length > 0 && (
-          <div style={{ display: "flex", gap: 16, marginTop: 56 }}>
-            {recent.map((r, i) => (
-               
-              <img
-                key={i}
-                src={r.posterUrl!}
-                width={150}
-                height={225}
-                style={{ borderRadius: 12, objectFit: "cover" }}
-                alt=""
-              />
-            ))}
-          </div>
-        )}
       </div>
     ),
     { ...size }

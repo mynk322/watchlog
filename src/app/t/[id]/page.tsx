@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { Film, Tv } from "lucide-react";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { StarRating } from "@/components/star-rating";
 import { RatingBadge } from "@/components/rating-badge";
@@ -12,7 +13,8 @@ import { googleSearchUrl } from "@/lib/tmdb-shared";
 export const dynamic = "force-dynamic";
 
 async function getTitle(id: string) {
-  return prisma.title.findUnique({ where: { id } });
+  const { userId } = await auth.protect();
+  return prisma.title.findUnique({ where: { id, userId } });
 }
 
 export async function generateMetadata({

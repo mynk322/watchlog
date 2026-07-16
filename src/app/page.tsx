@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { TitleGrid } from "@/components/title-grid";
 import { DiscoverRow } from "@/components/discover-row";
@@ -7,16 +8,16 @@ export const dynamic = "force-dynamic";
 
 const HERO_POSTER_TARGET = 30;
 
-async function getHeroTitle() {
+async function getHeroTitle(userId: string) {
   return prisma.title.findFirst({
-    where: { status: "WATCHED", backdropUrl: { not: null } },
+    where: { status: "WATCHED", backdropUrl: { not: null }, userId },
     orderBy: [{ watchedAt: "desc" }, { addedAt: "desc" }],
   });
 }
 
-async function getHeroPosters() {
+async function getHeroPosters(userId: string) {
   const titleRows = await prisma.title.findMany({
-    where: { posterUrl: { not: null } },
+    where: { posterUrl: { not: null }, userId },
     orderBy: [{ watchedAt: "desc" }, { addedAt: "desc" }],
     take: HERO_POSTER_TARGET,
     select: { id: true, posterUrl: true, title: true, tmdbId: true, mediaType: true },
@@ -39,7 +40,12 @@ async function getHeroPosters() {
 }
 
 export default async function Home() {
-  const [hero, heroPosters] = await Promise.all([getHeroTitle(), getHeroPosters()]);
+  const { userId } = await auth.protect();
+  const [hero, heroPosters, settings] = await Promise.all([
+    getHeroTitle(userId),
+    getHeroPosters(userId),
+    prisma.userSettings.findUnique({ where: { userId } }),
+  ]);
 
   return (
     <div className="flex flex-col">
@@ -68,7 +74,11 @@ export default async function Home() {
       <div className="flex flex-col gap-16 px-4 py-14 sm:px-8">
         <section id="watched" className="scroll-mt-24">
           <h2 className="mb-6 text-2xl font-bold text-foreground">Watched</h2>
-          <TitleGrid status="WATCHED" emptyHint="Nothing logged yet — search above and mark something as watched." />
+          <TitleGrid
+            status="WATCHED"
+            initialSortKey={settings?.watchedSortKey}
+            emptyHint="Nothing logged yet — search above and mark something as watched."
+          />
         </section>
 
         <section id="watchlist" className="scroll-mt-24">
@@ -76,7 +86,11 @@ export default async function Home() {
             <h2 className="text-2xl font-bold text-foreground">Watchlist</h2>
             <span className="text-sm text-muted">Queued up for later</span>
           </div>
-          <TitleGrid status="WATCHLIST" emptyHint="Your watchlist is empty — add something you're planning to watch." />
+          <TitleGrid
+            status="WATCHLIST"
+            initialSortKey={settings?.watchlistSortKey}
+            emptyHint="Your watchlist is empty — add something you're planning to watch."
+          />
         </section>
 
         <section id="discover" className="scroll-mt-24">

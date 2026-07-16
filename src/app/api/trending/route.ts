@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getTrending } from "@/lib/tmdb";
 import type { TrendingDTO } from "@/lib/types";
@@ -24,6 +25,9 @@ async function populateTrendingCache() {
 }
 
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
   let items = await prisma.trendingItem.findMany({ orderBy: { voteAverage: "desc" } });
 
   // First load before any cron run has populated the cache yet: fetch live so the
@@ -38,7 +42,7 @@ export async function GET() {
   }
 
   const existing = await prisma.title.findMany({
-    where: { OR: items.map((i) => ({ tmdbId: i.tmdbId, mediaType: i.mediaType })) },
+    where: { userId, OR: items.map((i) => ({ tmdbId: i.tmdbId, mediaType: i.mediaType })) },
     select: { tmdbId: true, mediaType: true, status: true },
   });
   const existingMap = new Map(existing.map((e) => [`${e.tmdbId}-${e.mediaType}`, e.status]));

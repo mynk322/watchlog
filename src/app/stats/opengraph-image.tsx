@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { auth } from "@clerk/nextjs/server";
 import { getWatchStats } from "@/lib/stats";
 
 export const alt = "My taste in numbers — Watchlog";
@@ -6,7 +7,8 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function Image() {
-  const stats = await getWatchStats();
+  const { userId } = await auth.protect();
+  const stats = await getWatchStats(userId);
   const topGenre = stats.genreBreakdown[0]?.label;
 
   const tiles = [

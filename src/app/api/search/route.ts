@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { searchTitles } from "@/lib/tmdb";
 import { parseYear } from "@/lib/tmdb-shared";
@@ -8,6 +9,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
   const q = request.nextUrl.searchParams.get("q") ?? "";
   if (!q.trim()) {
     return Response.json({ results: [] });
@@ -22,6 +26,7 @@ export async function GET(request: NextRequest) {
 
   const existing = await prisma.title.findMany({
     where: {
+      userId,
       OR: results.map((r) => ({
         tmdbId: r.tmdbId,
         mediaType: r.mediaType === "tv" ? "TV" : "MOVIE",

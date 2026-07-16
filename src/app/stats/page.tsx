@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { getWatchStats } from "@/lib/stats";
 import { StatTile } from "@/components/stat-tile";
 import { StatCard } from "@/components/stat-card";
@@ -8,7 +9,8 @@ import { PeopleList } from "@/components/people-list";
 export const dynamic = "force-dynamic";
 
 export default async function StatsPage() {
-  const stats = await getWatchStats();
+  const { userId } = await auth.protect();
+  const stats = await getWatchStats(userId);
   const totalWatched = stats.moviesWatched + stats.seriesWatched;
 
   if (totalWatched === 0) {
