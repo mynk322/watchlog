@@ -86,8 +86,8 @@ describe("getRecommendationsForUser", () => {
 });
 
 describe("getProfileRecommendations", () => {
-  const reviewMock = (prisma as unknown as { review: Record<string, Mock> }).review;
-  const titleMeta = (id: string, tmdbId: number, genres: string[], title = `T${tmdbId}`) => ({
+  // The owner's own rated Title row carries display metadata + their rating directly.
+  const ownerTitle = (id: string, tmdbId: number, genres: string[], rating = 5, title = `T${tmdbId}`) => ({
     id,
     tmdbId,
     mediaType: "MOVIE",
@@ -95,34 +95,30 @@ describe("getProfileRecommendations", () => {
     posterUrl: `/${id}.jpg`,
     releaseYear: 2020,
     genres,
+    rating,
   });
 
   it("returns [] for your own profile without querying", async () => {
     expect(await getProfileRecommendations("me", "me")).toEqual([]);
-    expect(reviewMock.findMany).not.toHaveBeenCalled();
+    expect(titleMock.findMany).not.toHaveBeenCalled();
   });
 
-  it("returns [] when the owner has no rated reviews", async () => {
-    reviewMock.findMany.mockResolvedValueOnce([]); // owner reviews (rating not null)
+  it("returns [] when the owner has rated nothing", async () => {
+    titleMock.findMany.mockResolvedValueOnce([]); // owner's rated titles
     expect(await getProfileRecommendations("owner", "viewer")).toEqual([]);
   });
 
-  it("recommends from the owner's rated reviews, boosting genres the viewer likes, excluding owned", async () => {
-    // Owner publicly reviewed three titles with 5 stars.
-    reviewMock.findMany.mockResolvedValueOnce([
-      { tmdbId: 1, mediaType: "MOVIE", rating: 5 },
-      { tmdbId: 2, mediaType: "MOVIE", rating: 5 },
-      { tmdbId: 3, mediaType: "MOVIE", rating: 5 },
+  it("recommends the owner's rated titles, boosting genres the viewer likes, excluding owned", async () => {
+    // Owner rated three titles 5 stars (1 = Drama, 2 = Comedy, 3 = Drama).
+    titleMock.findMany.mockResolvedValueOnce([
+      ownerTitle("drama", 1, ["Drama"], 5, "Drama Pick"),
+      ownerTitle("comedy", 2, ["Comedy"], 5, "Comedy Pick"),
+      ownerTitle("owned", 3, ["Drama"], 5, "Already Seen"),
     ]);
     // Viewer loves Comedy and already has title 3.
     titleMock.findMany.mockResolvedValueOnce([
       { tmdbId: 9, mediaType: "MOVIE", status: "WATCHED", rating: 5, genres: ["Comedy"] },
       { tmdbId: 3, mediaType: "MOVIE", status: "WATCHED", rating: 4, genres: ["Drama"] },
-    ]);
-    // Title metadata for the remaining candidates (1 = Drama, 2 = Comedy).
-    titleMock.findMany.mockResolvedValueOnce([
-      titleMeta("drama", 1, ["Drama"], "Drama Pick"),
-      titleMeta("comedy", 2, ["Comedy"], "Comedy Pick"),
     ]);
 
     const recs = await getProfileRecommendations("owner", "viewer");
@@ -131,20 +127,10 @@ describe("getProfileRecommendations", () => {
     expect(recs[0]).toMatchObject({ titleId: "comedy", ownerRating: 5, title: "Comedy Pick" });
   });
 
-  it("skips a reviewed title with no surviving Title row (nothing to show/link)", async () => {
-    reviewMock.findMany.mockResolvedValueOnce([{ tmdbId: 7, mediaType: "MOVIE", rating: 5 }]);
-    titleMock.findMany.mockResolvedValueOnce([]); // no metadata rows anywhere
-    expect(await getProfileRecommendations("owner", null)).toEqual([]);
-  });
-
-  it("ranks purely by the owner's review rating for a logged-out viewer (no viewer-taste query)", async () => {
-    reviewMock.findMany.mockResolvedValueOnce([
-      { tmdbId: 1, mediaType: "MOVIE", rating: 5 },
-      { tmdbId: 2, mediaType: "MOVIE", rating: 3 },
-    ]);
-    titleMock.findMany.mockResolvedValueOnce([titleMeta("hi", 1, ["Drama"]), titleMeta("lo", 2, ["Comedy"])]);
+  it("ranks purely by the owner's rating for a logged-out viewer (no viewer-taste query)", async () => {
+    titleMock.findMany.mockResolvedValueOnce([ownerTitle("hi", 1, ["Drama"], 5), ownerTitle("lo", 2, ["Comedy"], 3)]);
     const recs = await getProfileRecommendations("owner", null);
     expect(recs.map((r) => r.titleId)).toEqual(["hi", "lo"]);
-    expect(titleMock.findMany).toHaveBeenCalledTimes(1); // only the metadata query, no viewer query
+    expect(titleMock.findMany).toHaveBeenCalledTimes(1); // only the owner query, no viewer query
   });
 });
