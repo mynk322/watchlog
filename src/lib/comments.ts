@@ -39,3 +39,9 @@ export async function createComment(reviewId: string, userId: string, body: stri
 export async function deleteCommentsForReview(reviewId: string): Promise<void> {
   await prisma.comment.deleteMany({ where: { reviewId } });
 }
+
+/** Distinct userIds of everyone who has commented on a review — used to notify thread participants. */
+export async function getCommentParticipants(reviewId: string): Promise<string[]> {
+  const rows = await prisma.comment.findMany({ where: { reviewId }, select: { userId: true }, distinct: ["userId"] });
+  return rows.map((r) => r.userId);
+}

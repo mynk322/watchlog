@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isValidRating, isValidHandle, isValidDisplayName, normalizeHandle } from "./validation";
+import { isValidRating, isValidHandle, isValidDisplayName, isValidBio, normalizeHandle } from "./validation";
 
 describe("isValidRating", () => {
   it("accepts half-star multiples from 0.5 to 5", () => {
@@ -58,5 +58,19 @@ describe("isValidDisplayName", () => {
     expect(isValidDisplayName("x".repeat(51))).toBe(false);
     expect(isValidDisplayName(42)).toBe(false);
     expect(isValidDisplayName(undefined)).toBe(false);
+  });
+});
+
+describe("isValidBio", () => {
+  it("accepts empty (clears bio) and up to 300 chars", () => {
+    expect(isValidBio("")).toBe(true);
+    expect(isValidBio("Loves slow burns and noir.")).toBe(true);
+    expect(isValidBio("x".repeat(300))).toBe(true);
+  });
+
+  it("rejects over-long bios and non-strings", () => {
+    expect(isValidBio("x".repeat(301))).toBe(false);
+    expect(isValidBio(123)).toBe(false);
+    expect(isValidBio(null)).toBe(false);
   });
 });

@@ -4,9 +4,11 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ensureProfile } from "@/lib/profile";
 import {
+  BIO_MAX_LENGTH,
   DISPLAY_NAME_MAX_LENGTH,
   HANDLE_MAX_LENGTH,
   HANDLE_MIN_LENGTH,
+  isValidBio,
   isValidDisplayName,
   isValidHandle,
   normalizeHandle,
@@ -20,7 +22,7 @@ export async function PATCH(request: NextRequest) {
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => null);
-  const data: { displayName?: string; handle?: string } = {};
+  const data: { displayName?: string; handle?: string; bio?: string | null } = {};
 
   if (body?.displayName !== undefined) {
     if (!isValidDisplayName(body.displayName)) {
@@ -40,8 +42,17 @@ export async function PATCH(request: NextRequest) {
     data.handle = handle;
   }
 
+  if (body?.bio !== undefined) {
+    if (!isValidBio(body.bio)) {
+      return Response.json({ error: `Bio must be ${BIO_MAX_LENGTH} characters or fewer` }, { status: 400 });
+    }
+    // Empty/whitespace bio clears it (stored as null).
+    const trimmed = body.bio.trim();
+    data.bio = trimmed.length > 0 ? trimmed : null;
+  }
+
   if (Object.keys(data).length === 0) {
-    return Response.json({ error: "provide displayName and/or handle to update" }, { status: 400 });
+    return Response.json({ error: "provide displayName, handle, and/or bio to update" }, { status: 400 });
   }
 
   // A profile row may not exist yet (created lazily on first review) — make sure there's one to update.

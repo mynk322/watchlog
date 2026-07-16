@@ -7,15 +7,16 @@ import { Clapperboard, Menu, User, X } from "lucide-react";
 import { SearchBar } from "./search-bar";
 import { ThemeToggle } from "./theme-toggle";
 import { GhostListLink } from "./ghost-list-link";
+import { NotificationBell } from "./notification-bell";
 import { cn } from "@/lib/utils";
 
+// Notifications live in the header as a bell (with unread badge), not a plain nav link.
 const NAV_LINKS = [
   { href: "/#watched", label: "Watched" },
   { href: "/#watchlist", label: "Watchlist" },
   { href: "/#discover", label: "Discover" },
   { href: "/people", label: "People" },
   { href: "/feed", label: "Feed" },
-  { href: "/notifications", label: "Notifications" },
   { href: "/stats", label: "Stats" },
   { href: "/me", label: "My profile" },
 ];
@@ -113,6 +114,7 @@ export function SiteHeader() {
           {(signedIn || signedOut) && <SearchBar />}
           <div className="hidden items-center gap-3 sm:flex">
             <ThemeToggle />
+            {signedIn && <NotificationBell />}
             {signedIn && <AccountMenu />}
             {signedOut && (
               <>
@@ -141,6 +143,11 @@ export function SiteHeader() {
               {link.label}
             </Link>
           ))}
+          {signedIn && (
+            <div className="px-2 py-2.5">
+              <NotificationBell showLabel onNavigate={() => setMenuOpen(false)} />
+            </div>
+          )}
           <div className="mt-1 flex items-center justify-between border-t border-border px-2 pt-3">
             <span className="text-sm text-muted">Theme</span>
             <ThemeToggle />

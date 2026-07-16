@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { User, Pencil } from "lucide-react";
+import { User, Pencil, Star, Heart } from "lucide-react";
 import {
+  BIO_MAX_LENGTH,
   DISPLAY_NAME_MAX_LENGTH,
   HANDLE_MAX_LENGTH,
+  isValidBio,
   isValidDisplayName,
   isValidHandle,
   normalizeHandle,
@@ -17,14 +19,16 @@ export function ProfileHeader({ profile, isOwner }: { profile: ProfileDTO; isOwn
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [handle, setHandle] = useState(profile.handle);
+  const [bio, setBio] = useState(profile.bio ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const normalizedHandle = normalizeHandle(handle);
-  const canSave =
-    isValidDisplayName(displayName) &&
-    isValidHandle(normalizedHandle) &&
-    (displayName.trim() !== profile.displayName || normalizedHandle !== profile.handle);
+  const changed =
+    displayName.trim() !== profile.displayName ||
+    normalizedHandle !== profile.handle ||
+    bio.trim() !== (profile.bio ?? "");
+  const canSave = isValidDisplayName(displayName) && isValidHandle(normalizedHandle) && isValidBio(bio) && changed;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,7 +39,7 @@ export function ProfileHeader({ profile, isOwner }: { profile: ProfileDTO; isOwn
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName: displayName.trim(), handle: normalizedHandle }),
+        body: JSON.stringify({ displayName: displayName.trim(), handle: normalizedHandle, bio: bio.trim() }),
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => null);
@@ -57,6 +61,7 @@ export function ProfileHeader({ profile, isOwner }: { profile: ProfileDTO; isOwn
   function cancel() {
     setDisplayName(profile.displayName);
     setHandle(profile.handle);
+    setBio(profile.bio ?? "");
     setError(null);
     setEditing(false);
   }
@@ -103,6 +108,17 @@ export function ProfileHeader({ profile, isOwner }: { profile: ProfileDTO; isOwn
               />
             </div>
           </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted">Bio</span>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              maxLength={BIO_MAX_LENGTH}
+              rows={3}
+              placeholder="A line or two about your taste in movies…"
+              className="resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </label>
           {error && <p className="text-xs text-accent">{error}</p>}
           <div className="flex items-center gap-2">
             <button
@@ -126,20 +142,36 @@ export function ProfileHeader({ profile, isOwner }: { profile: ProfileDTO; isOwn
   }
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-start gap-4">
       {avatar}
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <h1 className="truncate text-2xl font-bold text-foreground sm:text-3xl">{profile.displayName}</h1>
         <p className="truncate text-sm text-muted">@{profile.handle}</p>
-        <div className="mt-1 flex items-center gap-3">
-          <p className="text-sm text-muted">
-            {profile.reviewCount} {profile.reviewCount === 1 ? "review" : "reviews"}
-          </p>
+
+        {profile.bio && <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">{profile.bio}</p>}
+
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+          <span>
+            <span className="font-semibold text-foreground">{profile.reviewCount}</span>{" "}
+            {profile.reviewCount === 1 ? "review" : "reviews"}
+          </span>
+          {profile.avgRating != null && (
+            <span className="inline-flex items-center gap-1">
+              <Star size={13} className="fill-gold text-gold" />
+              <span className="font-semibold text-foreground">{profile.avgRating.toFixed(1)}</span> avg
+            </span>
+          )}
+          {profile.likesReceived > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <Heart size={13} className="fill-accent text-accent" />
+              <span className="font-semibold text-foreground">{profile.likesReceived}</span>
+            </span>
+          )}
           {isOwner && (
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="inline-flex items-center gap-1 text-sm font-medium text-muted transition-colors hover:text-foreground cursor-pointer"
+              className="inline-flex items-center gap-1 font-medium transition-colors hover:text-foreground cursor-pointer"
             >
               <Pencil size={13} />
               Edit profile

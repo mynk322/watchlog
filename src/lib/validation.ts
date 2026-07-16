@@ -5,6 +5,7 @@ export function isValidRating(value: unknown): value is number {
 export const HANDLE_MIN_LENGTH = 3;
 export const HANDLE_MAX_LENGTH = 30;
 export const DISPLAY_NAME_MAX_LENGTH = 50;
+export const BIO_MAX_LENGTH = 300;
 
 // Lowercase alphanumeric segments joined by single hyphens — no leading/trailing/double hyphens.
 const HANDLE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -27,4 +28,9 @@ export function isValidDisplayName(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const trimmed = value.trim();
   return trimmed.length >= 1 && trimmed.length <= DISPLAY_NAME_MAX_LENGTH;
+}
+
+/** Bio is optional; when present it must be a string within the length cap (empty clears it). */
+export function isValidBio(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length <= BIO_MAX_LENGTH;
 }

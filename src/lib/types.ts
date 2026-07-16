@@ -77,7 +77,12 @@ export interface ProfileDTO {
   displayName: string;
   handle: string;
   avatarUrl: string | null;
+  bio: string | null;
   reviewCount: number;
+  /** Average of the star ratings this user attached to reviews (null when they've rated none). */
+  avgRating: number | null;
+  /** Total likes across all of this user's reviews. */
+  likesReceived: number;
 }
 
 /** The title a review is about, resolved for display on a profile page (Title rows are per-user, so this comes from whichever user's row has it). */
@@ -132,6 +137,10 @@ export interface NotificationDTO {
   actor: ReviewAuthorDTO;
   /** The review involved, for LIKE/COMMENT; null for FOLLOW. */
   reviewId: string | null;
+  /** The title of the review involved (LIKE/COMMENT), when resolvable. */
+  reviewTitle: string | null;
+  /** Where clicking the notification should go (the actor's profile, or the review's location). */
+  href: string;
   read: boolean;
   createdAt: string;
 }

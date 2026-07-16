@@ -99,7 +99,14 @@ describe("getProfilePage", () => {
 
     const page = await getProfilePage("author-a", "viewer");
     expect(page).not.toBeNull();
-    expect(page!.profile).toMatchObject({ userId: "authorA", handle: "handle-authorA", reviewCount: 2 });
+    // Both seeded reviews carry rating 4; likes are mocked empty, so avg 4.0 and 0 likes received.
+    expect(page!.profile).toMatchObject({
+      userId: "authorA",
+      handle: "handle-authorA",
+      reviewCount: 2,
+      avgRating: 4,
+      likesReceived: 0,
+    });
     expect(page!.reviews).toHaveLength(2);
   });
 });
