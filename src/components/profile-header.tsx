@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { User, Pencil, Star, Heart } from "lucide-react";
+import { Pencil, Star, Heart } from "lucide-react";
+import { AvatarUploader } from "./avatar-uploader";
 import {
   BIO_MAX_LENGTH,
   DISPLAY_NAME_MAX_LENGTH,
@@ -66,18 +67,7 @@ export function ProfileHeader({ profile, isOwner }: { profile: ProfileDTO; isOwn
     setEditing(false);
   }
 
-  const avatar = (
-    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-surface-elevated sm:h-20 sm:w-20">
-      {profile.avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- avatar from Clerk, not worth the Image optimizer overhead
-        <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center">
-          <User size={28} className="text-muted" />
-        </div>
-      )}
-    </div>
-  );
+  const avatar = <AvatarUploader avatarUrl={profile.avatarUrl} editable={isOwner} />;
 
   if (editing) {
     return (
