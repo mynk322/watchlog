@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { sendSuggestion } from "@/lib/suggestions";
+import { ensureProfile } from "@/lib/profile";
 import type { MediaType } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "toUserId, tmdbId and mediaType are required" }, { status: 400 });
   }
 
+  await ensureProfile(userId); // the sender is shown as the recommender in the recipient's inbox
   const result = await sendSuggestion(userId, toUserId, tmdbId, mediaType, message);
   if (result === "self") return Response.json({ error: "You can't recommend a title to yourself" }, { status: 400 });
   if (result === "no-recipient") return Response.json({ error: "Recipient not found" }, { status: 404 });

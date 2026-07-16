@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/follows", () => ({ follow: vi.fn(), unfollow: vi.fn() }));
 vi.mock("@/lib/notifications", () => ({ createNotification: vi.fn() }));
+vi.mock("@/lib/profile", () => ({ ensureProfile: vi.fn() }));
 
 import { auth } from "@clerk/nextjs/server";
 import { follow, unfollow } from "@/lib/follows";

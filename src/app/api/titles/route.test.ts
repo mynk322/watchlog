@@ -5,6 +5,8 @@ vi.mock("@/lib/titles", () => ({ upsertTitleForUser: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({ prisma: { title: { findMany: vi.fn() } } }));
 // toTitleDTO needs a full TitleModel (Date fields); stub it so we can assert on plain shapes.
 vi.mock("@/lib/dto", () => ({ toTitleDTO: vi.fn((t: { id: string }) => ({ id: t.id })) }));
+vi.mock("@/lib/activity", () => ({ recordActivity: vi.fn() }));
+vi.mock("@/lib/profile", () => ({ ensureProfile: vi.fn() }));
 
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";

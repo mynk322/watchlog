@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { follow, unfollow } from "@/lib/follows";
 import { createNotification } from "@/lib/notifications";
+import { ensureProfile } from "@/lib/profile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
   if (!target) return Response.json({ error: "userId is required" }, { status: 400 });
   if (target === userId) return Response.json({ error: "You can't follow yourself" }, { status: 400 });
 
+  await ensureProfile(userId); // a follower needs an identity too, so they surface in /people
   await follow(userId, target);
   await createNotification({ userId: target, actorId: userId, type: "FOLLOW" });
   return Response.json({ isFollowing: true });

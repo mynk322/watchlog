@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createList, getListsForUser, MAX_LISTS_PER_USER } from "@/lib/lists";
+import { ensureProfile } from "@/lib/profile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export async function POST(request: NextRequest) {
   const name = typeof body?.name === "string" ? body.name : "";
   const description = typeof body?.description === "string" ? body.description : null;
 
+  await ensureProfile(userId); // list author surfaces on their profile / in /people
   const result = await createList(userId, name, description);
   if (result === "invalid") return Response.json({ error: "A list name is required" }, { status: 400 });
   if (result === "at-limit") {

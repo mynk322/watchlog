@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { toTitleDTO } from "@/lib/dto";
 import { upsertTitleForUser } from "@/lib/titles";
 import { recordActivity } from "@/lib/activity";
+import { ensureProfile } from "@/lib/profile";
 import type { MediaType, TitleStatus } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -41,6 +42,10 @@ export async function POST(request: NextRequest) {
   if (!Number.isInteger(tmdbId) || !VALID_MEDIA_TYPES.includes(mediaType) || !VALID_STATUSES.includes(status)) {
     return Response.json({ error: "tmdbId, mediaType, and status are required" }, { status: 400 });
   }
+
+  // Adding to a library is the near-universal first action — give the user a profile so they show up
+  // in /people and are reachable/recommendable, even if they never review or comment.
+  await ensureProfile(userId);
 
   let title;
   try {
