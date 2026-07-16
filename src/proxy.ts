@@ -6,6 +6,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/api/cron/refresh",
   "/api/admin/claim-legacy-titles",
+  "/api/admin/migrate-user",
   "/opengraph-image",
   "/t/(.*)/opengraph-image",
   // Generated metadata icons have no file extension, so the matcher below doesn't exclude them —
