@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Bookmark, Eye, Check } from "lucide-react";
 import { PosterCard } from "./poster-card";
 import { PillButton } from "./pill-button";
 import type { TrendingDTO, TitleStatus } from "@/lib/types";
 
-const INITIAL_VISIBLE = 12;
-const STEP = 12;
+// Manual "Load more" (no auto-infinite-scroll). 18 reads well on mobile (2-col) and desktop (6-col).
+const INITIAL_VISIBLE = 18;
+const STEP = 18;
 
 export function RecommendationsRow() {
   const [items, setItems] = useState<TrendingDTO[]>([]);
@@ -15,7 +16,6 @@ export function RecommendationsRow() {
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<string | null>(null);
   const [visible, setVisible] = useState(INITIAL_VISIBLE);
-  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,21 +33,6 @@ export function RecommendationsRow() {
       cancelled = true;
     };
   }, []);
-
-  // Infinite scroll: reveal the next batch as the sentinel (the "Load more" row) nears the viewport.
-  // Re-observing when `visible` changes lets it keep filling while the sentinel stays on screen.
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) setVisible((v) => Math.min(v + STEP, items.length));
-      },
-      { rootMargin: "200px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [items.length, visible]);
 
   async function addTitle(item: TrendingDTO, status: TitleStatus) {
     const key = `${item.tmdbId}-${item.mediaType}`;
@@ -143,16 +128,14 @@ export function RecommendationsRow() {
         {items.slice(0, visible).map(renderCard)}
       </div>
 
-      {/* The sentinel doubles as the manual control: scrolling to it auto-loads (infinite scroll),
-          and it's still clickable for anyone who prefers to. */}
       {hasMore && (
-        <div ref={sentinelRef} className="flex justify-center pt-2">
+        <div className="flex justify-center pt-2">
           <button
             type="button"
             onClick={() => setVisible((v) => Math.min(v + STEP, items.length))}
             className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-elevated cursor-pointer"
           >
-            Load more
+            Load more ({items.length - visible} left)
           </button>
         </div>
       )}
