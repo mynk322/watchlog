@@ -7,11 +7,13 @@ import { ProfileReviews } from "@/components/profile-reviews";
 import { FollowButton } from "@/components/follow-button";
 import { FavoritesStrip } from "@/components/favorites-strip";
 import { ProfileRecommendations } from "@/components/profile-recommendations";
+import { ListsSection } from "@/components/lists-section";
 import { SectionHeading } from "@/components/section-heading";
 import { getProfilePage } from "@/lib/reviews";
 import { getFollowStats } from "@/lib/follows";
 import { getFavorites } from "@/lib/favorites";
 import { getProfileRecommendations } from "@/lib/recommendations";
+import { getListsForUser } from "@/lib/lists";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +42,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
 
   const { profile, reviews } = data;
   const isOwner = userId != null && profile.userId === userId;
-  const [followStats, favorites, recommendations] = await Promise.all([
+  const [followStats, favorites, recommendations, lists] = await Promise.all([
     getFollowStats(profile.userId, userId),
     getFavorites(profile.userId, userId),
     getProfileRecommendations(profile.userId, userId),
+    getListsForUser(profile.userId, userId),
   ]);
 
   return (
@@ -71,6 +74,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
       </div>
 
       <FavoritesStrip favorites={favorites} />
+
+      <ListsSection lists={lists} isOwner={isOwner} />
 
       <section className="mt-10">
         <SectionHeading title="Reviews" meta={profile.reviewCount > 0 ? profile.reviewCount : undefined} />

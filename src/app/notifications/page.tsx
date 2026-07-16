@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { User, UserPlus, Heart, MessageCircle } from "lucide-react";
+import { User, UserPlus, Heart, MessageCircle, Send } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getNotifications, markAllRead } from "@/lib/notifications";
 import { formatRelativeTime } from "@/lib/utils";
@@ -21,12 +21,15 @@ function phraseFor(n: NotificationDTO): string {
       return n.reviewTitle ? `liked your review of ${n.reviewTitle}` : "liked your review";
     case "COMMENT":
       return n.reviewTitle ? `commented on ${n.reviewTitle}` : "commented on a review";
+    case "SUGGESTION":
+      return n.suggestedTitle ? `recommended ${n.suggestedTitle} to you` : "recommended a title to you";
   }
 }
 
 function NotificationIcon({ type }: { type: NotificationDTO["type"] }) {
   if (type === "FOLLOW") return <UserPlus size={14} className="text-accent" />;
   if (type === "LIKE") return <Heart size={14} className="text-accent" />;
+  if (type === "SUGGESTION") return <Send size={14} className="text-accent" />;
   return <MessageCircle size={14} className="text-accent" />;
 }
 

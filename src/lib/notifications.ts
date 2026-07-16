@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "./prisma";
 import { resolveReviewAuthors } from "./profile";
-import type { NotificationDTO, NotificationType } from "./types";
+import type { MediaType, NotificationDTO, NotificationType } from "./types";
 
 const NOTIFICATION_LIMIT = 50;
 
@@ -11,10 +11,19 @@ export async function createNotification(params: {
   actorId: string;
   type: NotificationType;
   reviewId?: string | null;
+  tmdbId?: number | null;
+  mediaType?: MediaType | null;
 }): Promise<void> {
   if (params.userId === params.actorId) return; // never notify yourself about your own action
   await prisma.notification.create({
-    data: { userId: params.userId, actorId: params.actorId, type: params.type, reviewId: params.reviewId ?? null },
+    data: {
+      userId: params.userId,
+      actorId: params.actorId,
+      type: params.type,
+      reviewId: params.reviewId ?? null,
+      tmdbId: params.tmdbId ?? null,
+      mediaType: params.mediaType ?? null,
+    },
   });
 }
 
@@ -48,28 +57,50 @@ export async function getNotifications(userId: string): Promise<NotificationDTO[
   // Resolve actors and review authors (for the deep link) in one identity lookup.
   const authors = await resolveReviewAuthors([...rows.map((r) => r.actorId), ...reviews.map((r) => r.userId)]);
 
-  const titleRows = reviews.length
+  // Titles referenced either by a review (LIKE/COMMENT) or directly on the row (SUGGESTION).
+  const titleFilters = [
+    ...reviews.map((r) => ({ tmdbId: r.tmdbId, mediaType: r.mediaType })),
+    ...rows
+      .filter((r) => r.tmdbId != null && r.mediaType != null)
+      .map((r) => ({ tmdbId: r.tmdbId!, mediaType: r.mediaType! })),
+  ];
+  const titleRows = titleFilters.length
     ? await prisma.title.findMany({
-        where: { OR: reviews.map((r) => ({ tmdbId: r.tmdbId, mediaType: r.mediaType })) },
-        select: { tmdbId: true, mediaType: true, title: true },
+        where: { OR: titleFilters },
+        select: { id: true, tmdbId: true, mediaType: true, title: true },
       })
     : [];
-  const titleByKey = new Map<string, string>();
-  for (const t of titleRows) titleByKey.set(titleKey(t.tmdbId, t.mediaType), t.title);
+  const titleByKey = new Map<string, { id: string; title: string }>();
+  for (const t of titleRows) {
+    // Keep the first id seen per title — any user's Title row links to the public /t/[id] page.
+    if (!titleByKey.has(titleKey(t.tmdbId, t.mediaType))) {
+      titleByKey.set(titleKey(t.tmdbId, t.mediaType), { id: t.id, title: t.title });
+    }
+  }
 
   return rows.map((r) => {
     const actor = authors.get(r.actorId)!;
     const review = r.reviewId ? reviewById.get(r.reviewId) : undefined;
     const reviewAuthor = review ? authors.get(review.userId) : undefined;
-    const reviewTitle = review ? (titleByKey.get(titleKey(review.tmdbId, review.mediaType)) ?? null) : null;
-    // LIKE/COMMENT → the review author's profile (review + thread live there); FOLLOW → the follower.
-    const href = review && reviewAuthor ? `/u/${reviewAuthor.handle}` : `/u/${actor.handle}`;
+    const reviewTitle = review ? (titleByKey.get(titleKey(review.tmdbId, review.mediaType))?.title ?? null) : null;
+
+    const suggested = r.tmdbId != null && r.mediaType != null ? titleByKey.get(titleKey(r.tmdbId, r.mediaType)) : undefined;
+    const suggestedTitle = r.type === "SUGGESTION" ? (suggested?.title ?? null) : null;
+
+    // SUGGESTION → the recommended title page; LIKE/COMMENT → the review author's profile (review +
+    // thread live there); FOLLOW → the follower's profile.
+    let href: string;
+    if (r.type === "SUGGESTION" && suggested) href = `/t/${suggested.id}`;
+    else if (review && reviewAuthor) href = `/u/${reviewAuthor.handle}`;
+    else href = `/u/${actor.handle}`;
+
     return {
       id: r.id,
       type: r.type as NotificationType,
       actor,
       reviewId: r.reviewId,
       reviewTitle,
+      suggestedTitle,
       href,
       read: r.read,
       createdAt: r.createdAt.toISOString(),

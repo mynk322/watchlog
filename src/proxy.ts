@@ -18,6 +18,7 @@ const isPublicRoute = createRouteMatcher([
   // protected — the follower graph is other people's identities, not public.
   "/t/:id",
   "/u/:handle",
+  "/lists/:id",
   "/list",
   // Logged-out visitors can browse: search TMDB, view the people directory. These are read-only
   // (adding to a watchlist still happens client-side via the ghost store until sign-in).

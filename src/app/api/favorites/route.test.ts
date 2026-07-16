@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/favorites", () => ({ addFavorite: vi.fn(), removeFavorite: vi.fn(), MAX_FAVORITES: 12 }));
+vi.mock("@/lib/activity", () => ({ recordActivity: vi.fn() }));
+vi.mock("@/lib/title-meta", () => ({
+  resolveTitleMeta: vi.fn().mockResolvedValue({ title: "Fight Club", posterUrl: null, releaseYear: 1999 }),
+}));
 
 import { auth } from "@clerk/nextjs/server";
 import { addFavorite, removeFavorite } from "@/lib/favorites";

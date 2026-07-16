@@ -7,7 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { Search, Plus, Check, Loader2, X } from "lucide-react";
 import type { SearchResultDTO, TitleStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { MIN_YEAR, MAX_YEAR, parseYear } from "@/lib/tmdb-shared";
+import { MIN_YEAR, MAX_YEAR, parseYear, titleHref } from "@/lib/tmdb-shared";
 import {
   addGhostItem,
   getGhostServerSnapshot,
@@ -238,17 +238,23 @@ export function SearchBar() {
             const added = effectiveStatus(item);
             return (
               <div key={key} className="flex items-center gap-3 border-b border-border p-3 last:border-b-0">
-                <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-md bg-surface">
-                  {item.posterUrl && (
-                    <Image src={item.posterUrl} alt={item.title} fill sizes="44px" className="object-cover" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
-                  <p className="text-xs text-muted">
-                    {item.releaseYear ?? "—"} · {item.mediaType === "TV" ? "Series" : "Movie"}
-                  </p>
-                </div>
+                <Link
+                  href={titleHref(item.tmdbId, item.mediaType)}
+                  onClick={() => setOpen(false)}
+                  className="flex min-w-0 flex-1 items-center gap-3"
+                >
+                  <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-md bg-surface">
+                    {item.posterUrl && (
+                      <Image src={item.posterUrl} alt={item.title} fill sizes="44px" className="object-cover" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground hover:underline">{item.title}</p>
+                    <p className="text-xs text-muted">
+                      {item.releaseYear ?? "—"} · {item.mediaType === "TV" ? "Series" : "Movie"}
+                    </p>
+                  </div>
+                </Link>
                 <div className="flex shrink-0 gap-1.5">
                   <button
                     type="button"

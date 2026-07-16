@@ -17,6 +17,8 @@ const NAV_LINKS = [
   { href: "/#discover", label: "Discover" },
   { href: "/people", label: "People" },
   { href: "/feed", label: "Feed" },
+  { href: "/movie-nights", label: "Movie nights" },
+  { href: "/inbox", label: "Inbox" },
   { href: "/stats", label: "Stats" },
   { href: "/me", label: "My profile" },
 ];

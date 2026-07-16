@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { toTitleDTO } from "@/lib/dto";
 import { upsertTitleForUser } from "@/lib/titles";
+import { recordActivity } from "@/lib/activity";
 import type { MediaType, TitleStatus } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -47,6 +48,17 @@ export async function POST(request: NextRequest) {
   } catch {
     return Response.json({ error: "Could not fetch title details from TMDB" }, { status: 502 });
   }
+
+  await recordActivity({
+    userId,
+    type: status === "WATCHED" ? "WATCHED" : "WATCHLISTED",
+    tmdbId: title.tmdbId,
+    mediaType: title.mediaType,
+    title: title.title,
+    posterUrl: title.posterUrl,
+    releaseYear: title.releaseYear,
+    rating: status === "WATCHED" ? title.rating : null,
+  });
 
   return Response.json({ title: toTitleDTO(title) }, { status: 201 });
 }

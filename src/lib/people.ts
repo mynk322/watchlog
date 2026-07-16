@@ -1,14 +1,9 @@
 import "server-only";
 import { prisma } from "./prisma";
 import { resolveReviewAuthors } from "./profile";
+import type { PersonDTO } from "./types";
 
-export interface PersonDTO {
-  userId: string;
-  displayName: string;
-  handle: string;
-  avatarUrl: string | null;
-  reviewCount: number;
-}
+export type { PersonDTO };
 
 /**
  * Everyone with a public profile, most-reviewed first, for the /people directory. Uses an explicit

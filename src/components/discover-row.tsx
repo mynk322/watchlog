@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Bookmark, Eye, Check } from "lucide-react";
 import { PosterCard } from "./poster-card";
 import { PillButton } from "./pill-button";
+import { titleHref } from "@/lib/tmdb-shared";
 import type { TrendingDTO, TitleStatus } from "@/lib/types";
 
 export function DiscoverRow() {
@@ -76,6 +77,7 @@ export function DiscoverRow() {
             voteAverage={item.voteAverage}
             mediaType={item.mediaType}
             watchUrl={null}
+            detailHref={titleHref(item.tmdbId, item.mediaType)}
             actions={
               item.alreadyAdded ? (
                 <PillButton icon={<Check size={12} />} disabled>

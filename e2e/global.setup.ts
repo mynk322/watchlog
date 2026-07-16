@@ -33,7 +33,25 @@ async function resetAndSeed(aliceId: string, bobId: string, allIds: string[]): P
     await pool.query(`DELETE FROM "Comment" WHERE "userId" = ANY($1)`, [allIds]);
     await pool.query(`DELETE FROM "Follow" WHERE "followerId" = ANY($1) OR "followingId" = ANY($1)`, [allIds]);
     await pool.query(`DELETE FROM "Notification" WHERE "userId" = ANY($1) OR "actorId" = ANY($1)`, [allIds]);
+    await pool.query(`DELETE FROM "Suggestion" WHERE "fromUserId" = ANY($1) OR "toUserId" = ANY($1)`, [allIds]);
+    await pool.query(`DELETE FROM "Activity" WHERE "userId" = ANY($1)`, [allIds]);
+    await pool.query(
+      `DELETE FROM "MovieNightVote" WHERE "candidateId" IN (
+         SELECT c.id FROM "MovieNightCandidate" c
+         JOIN "MovieNight" m ON m.id = c."movieNightId" WHERE m."hostUserId" = ANY($1))`,
+      [allIds]
+    );
+    await pool.query(
+      `DELETE FROM "MovieNightCandidate" WHERE "movieNightId" IN (SELECT id FROM "MovieNight" WHERE "hostUserId" = ANY($1))`,
+      [allIds]
+    );
+    await pool.query(`DELETE FROM "MovieNight" WHERE "hostUserId" = ANY($1)`, [allIds]);
     await pool.query(`DELETE FROM "ProfileFavorite" WHERE "userId" = ANY($1)`, [allIds]);
+    await pool.query(
+      `DELETE FROM "ListItem" WHERE "listId" IN (SELECT id FROM "List" WHERE "userId" = ANY($1))`,
+      [allIds]
+    );
+    await pool.query(`DELETE FROM "List" WHERE "userId" = ANY($1)`, [allIds]);
     await pool.query(`DELETE FROM "Title" WHERE "userId" = ANY($1)`, [allIds]);
     await pool.query(`DELETE FROM "Profile" WHERE "userId" = ANY($1)`, [allIds]);
 

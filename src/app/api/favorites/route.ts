@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { addFavorite, removeFavorite, MAX_FAVORITES } from "@/lib/favorites";
+import { recordActivity } from "@/lib/activity";
+import { resolveTitleMeta } from "@/lib/title-meta";
 import type { MediaType } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -30,6 +32,18 @@ export async function POST(request: NextRequest) {
   if (result === "at-limit") {
     return Response.json({ error: `You can favorite up to ${MAX_FAVORITES} titles` }, { status: 409 });
   }
+
+  const meta = await resolveTitleMeta(input.tmdbId, input.mediaType);
+  await recordActivity({
+    userId,
+    type: "FAVORITED",
+    tmdbId: input.tmdbId,
+    mediaType: input.mediaType,
+    title: meta.title,
+    posterUrl: meta.posterUrl,
+    releaseYear: meta.releaseYear,
+  });
+
   return Response.json({ favorited: true });
 }
 

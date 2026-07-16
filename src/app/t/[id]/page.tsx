@@ -14,23 +14,17 @@ import { PublicReviewList } from "@/components/public-review-list";
 import { FeaturesCarousel } from "@/components/features-carousel";
 import { AddToWatchlistButton } from "@/components/add-to-watchlist-button";
 import { FavoriteButton } from "@/components/favorite-button";
+import { AddToListMenu } from "@/components/add-to-list-menu";
+import { RecommendButton } from "@/components/recommend-button";
 import { getReviewsForTitle } from "@/lib/reviews";
 import { getPublicTitleReviews } from "@/lib/public-title";
 import { isFavorited } from "@/lib/favorites";
 import { formatRuntime } from "@/lib/utils";
 import { googleSearchUrl } from "@/lib/tmdb-shared";
+import { resolveBaseTitle } from "@/lib/title-page";
 import type { CastMemberDTO, DirectorCreditDTO } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-
-/**
- * A shared link's id points at one user's per-user Title row. We look it up UNSCOPED so anyone
- * (logged out, or a different signed-in user) can see the title's public metadata — that data is
- * not private. Personal fields (the viewer's own rating/status) come from getViewerTitle instead.
- */
-async function getBaseTitle(id: string) {
-  return prisma.title.findUnique({ where: { id } });
-}
 
 /** The current user's own row for this title, if they've added it — source of their rating/status. */
 async function getViewerTitle(tmdbId: number, mediaType: "MOVIE" | "TV", userId: string) {
@@ -45,7 +39,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const title = await getBaseTitle(id);
+  const title = await resolveBaseTitle(id);
   if (!title) return {};
   return {
     title: `${title.title} — Watchlog`,
@@ -55,7 +49,7 @@ export async function generateMetadata({
 
 export default async function TitlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [title, { userId }] = await Promise.all([getBaseTitle(id), auth()]);
+  const [title, { userId }] = await Promise.all([resolveBaseTitle(id), auth()]);
   if (!title) notFound();
 
   const viewerTitle = userId ? await getViewerTitle(title.tmdbId, title.mediaType, userId) : null;
@@ -131,6 +125,10 @@ export default async function TitlePage({ params }: { params: Promise<{ id: stri
             )}
             {viewerTitle && (
               <FavoriteButton tmdbId={title.tmdbId} mediaType={title.mediaType} initialFavorited={favorited} />
+            )}
+            {userId && <AddToListMenu tmdbId={title.tmdbId} mediaType={title.mediaType} />}
+            {userId && (
+              <RecommendButton tmdbId={title.tmdbId} mediaType={title.mediaType} title={title.title} />
             )}
             <ShareButton
               url={`/t/${title.id}`}

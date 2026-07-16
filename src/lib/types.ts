@@ -171,7 +171,142 @@ export interface FavoriteTitleDTO {
   viewerTitleId: string | null;
 }
 
-export type NotificationType = "FOLLOW" | "LIKE" | "COMMENT";
+/** A user-created list as shown in an index or on a profile (no items, just a summary + preview). */
+export interface ListSummaryDTO {
+  id: string;
+  name: string;
+  description: string | null;
+  itemCount: number;
+  /** A few poster URLs (newest items first) for a preview thumbnail stack. */
+  previewPosters: string[];
+  updatedAt: string;
+  /** True when the requesting viewer owns this list. */
+  isOwn: boolean;
+}
+
+/** One title within a list. */
+export interface ListItemDTO {
+  id: string;
+  tmdbId: number;
+  mediaType: MediaType;
+  title: string;
+  posterUrl: string | null;
+  releaseYear: number | null;
+  note: string | null;
+  position: number;
+  /** The viewer's own Title row id for this title, if they have it — for linking to /t/[id]. */
+  viewerTitleId: string | null;
+}
+
+/** A full list with its items and owner identity, for the list detail page. */
+export interface ListDetailDTO {
+  id: string;
+  name: string;
+  description: string | null;
+  updatedAt: string;
+  owner: ReviewAuthorDTO;
+  isOwn: boolean;
+  items: ListItemDTO[];
+}
+
+/** Whether one of the viewer's lists already contains a given title — powers the "Add to list" menu. */
+export interface ListMembershipDTO {
+  id: string;
+  name: string;
+  contains: boolean;
+}
+
+export type MovieNightStatus = "OPEN" | "CLOSED";
+
+/** A movie-night poll as shown in the index list. */
+export interface MovieNightSummaryDTO {
+  id: string;
+  name: string;
+  host: ReviewAuthorDTO;
+  status: MovieNightStatus;
+  candidateCount: number;
+  createdAt: string;
+}
+
+/** A candidate title within a movie night, with its vote tally and the viewer's vote state. */
+export interface MovieNightCandidateDTO {
+  id: string;
+  tmdbId: number;
+  mediaType: MediaType;
+  title: string;
+  posterUrl: string | null;
+  releaseYear: number | null;
+  /** A Title row id to link to /t/[id], when resolvable. */
+  titleId: string | null;
+  voteCount: number;
+  votedByViewer: boolean;
+  addedByViewer: boolean;
+}
+
+/** A full movie night: its candidates (ranked by votes), the viewer's role, and the winner if closed. */
+export interface MovieNightDTO {
+  id: string;
+  name: string;
+  host: ReviewAuthorDTO;
+  status: MovieNightStatus;
+  isHost: boolean;
+  createdAt: string;
+  closedAt: string | null;
+  candidates: MovieNightCandidateDTO[];
+  /** The winning candidate (most votes) once closed; null while open or if there were no candidates. */
+  winner: MovieNightCandidateDTO | null;
+}
+
+export type ActivityType = "WATCHED" | "RATED" | "WATCHLISTED" | "FAVORITED" | "FINISHED_SEASON" | "LIST_CREATED";
+
+/** An item in the activity feed: a lightweight action by someone you follow. */
+export interface ActivityDTO {
+  id: string;
+  type: ActivityType;
+  actor: ReviewAuthorDTO;
+  createdAt: string;
+  // Title context (null for LIST_CREATED).
+  tmdbId: number | null;
+  mediaType: MediaType | null;
+  title: string | null;
+  posterUrl: string | null;
+  releaseYear: number | null;
+  rating: number | null;
+  season: number | null;
+  /** A Title row id to link to /t/[id], when resolvable. */
+  titleId: string | null;
+  // List context (LIST_CREATED only).
+  listId: string | null;
+  listName: string | null;
+}
+
+/** Someone with a public profile, for directories and recipient pickers. */
+export interface PersonDTO {
+  userId: string;
+  displayName: string;
+  handle: string;
+  avatarUrl: string | null;
+  reviewCount: number;
+}
+
+export type NotificationType = "FOLLOW" | "LIKE" | "COMMENT" | "SUGGESTION";
+
+/** A title one user recommended to another, as shown in the recipient's inbox. */
+export interface SuggestionDTO {
+  id: string;
+  from: ReviewAuthorDTO;
+  tmdbId: number;
+  mediaType: MediaType;
+  title: string;
+  posterUrl: string | null;
+  releaseYear: number | null;
+  message: string | null;
+  createdAt: string;
+  /** A Title row id to link to /t/[id] (the sender's own, if resolvable). Null if none exists. */
+  titleId: string | null;
+  /** Whether the recipient already has this title in their own library. */
+  inLibrary: boolean;
+}
 
 export interface NotificationDTO {
   id: string;
@@ -182,6 +317,8 @@ export interface NotificationDTO {
   reviewId: string | null;
   /** The title of the review involved (LIKE/COMMENT), when resolvable. */
   reviewTitle: string | null;
+  /** The recommended title's name, for SUGGESTION notifications. */
+  suggestedTitle: string | null;
   /** Where clicking the notification should go (the actor's profile, or the review's location). */
   href: string;
   read: boolean;

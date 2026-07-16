@@ -116,15 +116,37 @@ model Comment {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   userId    String // recipient (Clerk userId)
   actorId   String // who triggered it (Clerk userId)
-  type      String // FOLLOW | LIKE | COMMENT
+  type      String // FOLLOW | LIKE | COMMENT | SUGGESTION
   reviewId  String? // the review involved, for LIKE/COMMENT
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  tmdbId    Int? // the title involved, for SUGGESTION
+  mediaType MediaType? // the title's media type, for SUGGESTION
+  read      Boolean    @default(false)
+  createdAt DateTime   @default(now())
 
   @@index([userId, createdAt])
+}
+
+// One user recommending a specific title to another (with an optional note). Distinct from the
+// generic Notification (which is fire-and-forget); a suggestion persists in the recipient's inbox
+// until they dismiss it. Metadata is snapshotted so it survives the sender deleting their title.
+model Suggestion {
+  id          String    @id @default(cuid())
+  fromUserId  String // Clerk userId of the sender
+  toUserId    String // Clerk userId of the recipient
+  tmdbId      Int
+  mediaType   MediaType
+  title       String
+  posterUrl   String?
+  releaseYear Int?
+  message     String? // optional note from the sender
+  createdAt   DateTime  @default(now())
+  dismissedAt DateTime? // set when the recipient dismisses it (kept for "already sent" checks)
+
+  @@unique([fromUserId, toUserId, tmdbId, mediaType])
+  @@index([toUserId, dismissedAt, createdAt])
 }
 
 model ProfileFavorite {
@@ -140,6 +162,96 @@ model ProfileFavorite {
 
   @@id([userId, tmdbId, mediaType])
   @@index([userId, createdAt])
+}
+
+// A user-created list/collection (e.g. "Movie night", "Best of 2026"). Owned by one user; visible
+// to everyone (this is a friends-and-family app). Items are a separate model so a list can hold
+// titles the owner hasn't added to their own library.
+model List {
+  id          String   @id @default(cuid())
+  userId      String // Clerk userId of the owner
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+model ListItem {
+  id        String    @id @default(cuid())
+  listId    String // List.id — not a DB FK; items are cleaned up on list delete
+  tmdbId    Int
+  mediaType MediaType
+  // Metadata is snapshotted at add time (like ProfileFavorite) so items survive title deletion and
+  // need no cross-user Title resolution to display.
+  title       String
+  posterUrl   String?
+  releaseYear Int?
+  note        String? // optional per-item note from the list owner
+  position    Int       @default(0) // manual ordering within the list (ascending)
+  createdAt   DateTime  @default(now())
+
+  @@unique([listId, tmdbId, mediaType])
+  @@index([listId, position])
+}
+
+// A record of something a user did, for the follow feed. Reviews are NOT recorded here (they're
+// their own rich feed items); this captures the lighter-weight actions — watched, rated, added to
+// watchlist, favorited, finished a season, created a list. Metadata is snapshotted for display.
+model Activity {
+  id          String     @id @default(cuid())
+  userId      String // who did it (Clerk userId)
+  type        String // WATCHED | RATED | WATCHLISTED | FAVORITED | FINISHED_SEASON | LIST_CREATED
+  tmdbId      Int?
+  mediaType   MediaType?
+  title       String?
+  posterUrl   String?
+  releaseYear Int?
+  rating      Float? // for WATCHED / RATED
+  season      Int? // for FINISHED_SEASON
+  listId      String? // for LIST_CREATED
+  listName    String? // for LIST_CREATED
+  createdAt   DateTime   @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// A group "what should we watch?" poll. The host opens it; anyone adds candidate titles and votes
+// (approval-style — you can back several); the host closes it to lock in the winner.
+model MovieNight {
+  id         String    @id @default(cuid())
+  hostUserId String // Clerk userId of the creator/host
+  name       String
+  status     String    @default("OPEN") // OPEN | CLOSED
+  createdAt  DateTime  @default(now())
+  closedAt   DateTime?
+
+  @@index([status, createdAt])
+}
+
+model MovieNightCandidate {
+  id            String    @id @default(cuid())
+  movieNightId  String // MovieNight.id — not a DB FK; cleaned up on movie-night delete
+  tmdbId        Int
+  mediaType     MediaType
+  title         String
+  posterUrl     String?
+  releaseYear   Int?
+  addedByUserId String
+  createdAt     DateTime  @default(now())
+
+  @@unique([movieNightId, tmdbId, mediaType])
+  @@index([movieNightId])
+}
+
+model MovieNightVote {
+  candidateId String // MovieNightCandidate.id — not a DB FK; cleaned up on candidate/movie-night delete
+  userId      String // Clerk userId of the voter
+  createdAt   DateTime @default(now())
+
+  @@id([candidateId, userId])
+  @@index([candidateId])
 }
 
 model SearchCache {

@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toTitleDTO } from "@/lib/dto";
 import { isValidRating } from "@/lib/validation";
+import { recordActivity } from "@/lib/activity";
 import type { TitleStatus } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -72,8 +73,35 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return Response.json({ error: "provide status, rating, currentSeason, and/or currentEpisode to update" }, { status: 400 });
   }
 
+  // Capture the prior season so advancing to a later one can record a "finished a season" activity.
+  let prevSeason: number | null = null;
+  if (body?.currentSeason != null) {
+    const prev = await prisma.title.findUnique({ where: { id, userId }, select: { currentSeason: true } });
+    prevSeason = prev?.currentSeason ?? null;
+  }
+
   try {
     const title = await prisma.title.update({ where: { id, userId }, data });
+
+    // Feed activity: a fresh WATCHED, or a rating change, plus finishing a season.
+    if (data.status === "WATCHED") {
+      await recordActivity({
+        userId, type: "WATCHED", tmdbId: title.tmdbId, mediaType: title.mediaType,
+        title: title.title, posterUrl: title.posterUrl, releaseYear: title.releaseYear, rating: title.rating,
+      });
+    } else if (body?.rating != null) {
+      await recordActivity({
+        userId, type: "RATED", tmdbId: title.tmdbId, mediaType: title.mediaType,
+        title: title.title, posterUrl: title.posterUrl, releaseYear: title.releaseYear, rating: title.rating,
+      });
+    }
+    if (body?.currentSeason != null && prevSeason != null && body.currentSeason > prevSeason) {
+      await recordActivity({
+        userId, type: "FINISHED_SEASON", tmdbId: title.tmdbId, mediaType: title.mediaType,
+        title: title.title, posterUrl: title.posterUrl, releaseYear: title.releaseYear, season: prevSeason,
+      });
+    }
+
     return Response.json({ title: toTitleDTO(title) });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {

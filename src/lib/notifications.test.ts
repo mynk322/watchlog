@@ -39,7 +39,7 @@ describe("createNotification", () => {
     nMock.create.mockResolvedValue({});
     await createNotification({ userId: "author", actorId: "liker", type: "LIKE", reviewId: "r1" });
     expect(nMock.create).toHaveBeenCalledWith({
-      data: { userId: "author", actorId: "liker", type: "LIKE", reviewId: "r1" },
+      data: { userId: "author", actorId: "liker", type: "LIKE", reviewId: "r1", tmdbId: null, mediaType: null },
     });
   });
 
@@ -47,7 +47,7 @@ describe("createNotification", () => {
     nMock.create.mockResolvedValue({});
     await createNotification({ userId: "author", actorId: "follower", type: "FOLLOW" });
     expect(nMock.create).toHaveBeenCalledWith({
-      data: { userId: "author", actorId: "follower", type: "FOLLOW", reviewId: null },
+      data: { userId: "author", actorId: "follower", type: "FOLLOW", reviewId: null, tmdbId: null, mediaType: null },
     });
   });
 });
