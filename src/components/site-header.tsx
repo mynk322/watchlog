@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/#watched", label: "Watched" },
   { href: "/#watchlist", label: "Watchlist" },
   { href: "/#discover", label: "Discover" },
+  { href: "/feed", label: "Feed" },
   { href: "/stats", label: "Stats" },
   { href: "/me", label: "My profile" },
 ];

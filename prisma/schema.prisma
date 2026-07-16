@@ -83,6 +83,16 @@ model Profile {
   updatedAt   DateTime @updatedAt
 }
 
+model Follow {
+  followerId  String // Clerk userId of the follower
+  followingId String // Clerk userId of the user being followed
+  createdAt   DateTime @default(now())
+
+  @@id([followerId, followingId])
+  // followerId is the PK's leftmost column (covers "who I follow"); this covers "who follows X".
+  @@index([followingId])
+}
+
 model SearchCache {
   id        String   @id @default(cuid())
   query     String   @unique

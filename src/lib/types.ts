@@ -104,7 +104,26 @@ export interface ReviewDTO {
   isOwn: boolean;
 }
 
-/** A review shown on a profile page: the base review plus the title it's about. */
+/** A review shown on a profile page or feed: the base review (which carries its author) plus the title it's about. */
 export interface ProfileReviewDTO extends ReviewDTO {
   title: ReviewTitleRefDTO;
+}
+
+export interface FollowStatsDTO {
+  followerCount: number;
+  followingCount: number;
+  /** Whether the viewer follows this profile. Always false when viewing your own profile. */
+  isFollowing: boolean;
+}
+
+/** A user as shown in a follower/following list. */
+export interface UserSummaryDTO {
+  userId: string;
+  displayName: string;
+  handle: string;
+  avatarUrl: string | null;
+  /** Whether the viewer follows this user. */
+  isFollowing: boolean;
+  /** Whether this row is the viewer themselves (no follow button). */
+  isSelf: boolean;
 }

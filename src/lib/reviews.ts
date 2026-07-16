@@ -1,4 +1,5 @@
 import "server-only";
+import type { ReviewModel } from "@/generated/prisma/models";
 import { prisma } from "./prisma";
 import { resolveReviewAuthors } from "./profile";
 import { toReviewDTO } from "./dto";
@@ -18,11 +19,54 @@ function titleKey(tmdbId: number, mediaType: MediaType): string {
 }
 
 /**
+ * Turns raw Review rows into display DTOs carrying both author and title. Title rows are per-user,
+ * so title metadata is resolved from whichever user's row has it, and viewerTitleId is set only for
+ * titles the viewer has added (so a card can deep-link into their own /t/[id]). A review can outlive
+ * every Title row for its tmdbId (they aren't FK-linked), so metadata may be absent.
+ */
+async function buildProfileReviews(reviews: ReviewModel[], viewerId: string): Promise<ProfileReviewDTO[]> {
+  if (reviews.length === 0) return [];
+
+  const authors = await resolveReviewAuthors(reviews.map((r) => r.userId));
+
+  const distinctKeys = [...new Map(reviews.map((r) => [titleKey(r.tmdbId, r.mediaType), r])).values()];
+  const titleRows = await prisma.title.findMany({
+    where: { OR: distinctKeys.map((r) => ({ tmdbId: r.tmdbId, mediaType: r.mediaType })) },
+    select: { id: true, userId: true, tmdbId: true, mediaType: true, title: true, releaseYear: true, posterUrl: true },
+  });
+
+  const metaByKey = new Map<string, { title: string; releaseYear: number | null; posterUrl: string | null }>();
+  const viewerTitleIdByKey = new Map<string, string>();
+  for (const t of titleRows) {
+    const key = titleKey(t.tmdbId, t.mediaType);
+    const existing = metaByKey.get(key);
+    // Prefer a row that actually has a poster when multiple users hold the same title.
+    if (!existing || (!existing.posterUrl && t.posterUrl)) {
+      metaByKey.set(key, { title: t.title, releaseYear: t.releaseYear, posterUrl: t.posterUrl });
+    }
+    if (t.userId === viewerId) viewerTitleIdByKey.set(key, t.id);
+  }
+
+  return reviews.map((r) => {
+    const key = titleKey(r.tmdbId, r.mediaType);
+    const meta = metaByKey.get(key);
+    return {
+      ...toReviewDTO(r, authors.get(r.userId)!, viewerId),
+      title: {
+        tmdbId: r.tmdbId,
+        mediaType: r.mediaType,
+        title: meta?.title ?? "Title unavailable",
+        releaseYear: meta?.releaseYear ?? null,
+        posterUrl: meta?.posterUrl ?? null,
+        viewerTitleId: viewerTitleIdByKey.get(key) ?? null,
+      },
+    };
+  });
+}
+
+/**
  * Loads a public profile page: the profile identity plus every review its owner has written,
- * newest first, each carrying the title it's about. Title rows are per-user, so title metadata
- * is resolved from whichever user's row has it, and viewerTitleId is set only for titles the
- * viewer themselves has added (so the card can deep-link into their own /t/[id]).
- * Returns null when no profile owns the handle.
+ * newest first. Returns null when no profile owns the handle.
  */
 export async function getProfilePage(
   handle: string,
@@ -37,44 +81,7 @@ export async function getProfilePage(
   });
 
   const author = (await resolveReviewAuthors([profile.userId])).get(profile.userId)!;
-
-  // One query covers every distinct title the reviews reference; a review may outlive all
-  // Title rows for its tmdbId (titles and reviews aren't FK-linked), so metadata can be absent.
-  const distinctKeys = [...new Map(reviews.map((r) => [titleKey(r.tmdbId, r.mediaType), r])).values()];
-  const titleRows = distinctKeys.length
-    ? await prisma.title.findMany({
-        where: { OR: distinctKeys.map((r) => ({ tmdbId: r.tmdbId, mediaType: r.mediaType })) },
-        select: { id: true, userId: true, tmdbId: true, mediaType: true, title: true, releaseYear: true, posterUrl: true },
-      })
-    : [];
-
-  const metaByKey = new Map<string, { title: string; releaseYear: number | null; posterUrl: string | null }>();
-  const viewerTitleIdByKey = new Map<string, string>();
-  for (const t of titleRows) {
-    const key = titleKey(t.tmdbId, t.mediaType);
-    const existing = metaByKey.get(key);
-    // Prefer a row that actually has a poster when multiple users hold the same title.
-    if (!existing || (!existing.posterUrl && t.posterUrl)) {
-      metaByKey.set(key, { title: t.title, releaseYear: t.releaseYear, posterUrl: t.posterUrl });
-    }
-    if (t.userId === viewerId) viewerTitleIdByKey.set(key, t.id);
-  }
-
-  const profileReviews: ProfileReviewDTO[] = reviews.map((r) => {
-    const key = titleKey(r.tmdbId, r.mediaType);
-    const meta = metaByKey.get(key);
-    return {
-      ...toReviewDTO(r, author, viewerId),
-      title: {
-        tmdbId: r.tmdbId,
-        mediaType: r.mediaType,
-        title: meta?.title ?? "Title unavailable",
-        releaseYear: meta?.releaseYear ?? null,
-        posterUrl: meta?.posterUrl ?? null,
-        viewerTitleId: viewerTitleIdByKey.get(key) ?? null,
-      },
-    };
-  });
+  const profileReviews = await buildProfileReviews(reviews, viewerId);
 
   return {
     profile: {
@@ -86,4 +93,22 @@ export async function getProfilePage(
     },
     reviews: profileReviews,
   };
+}
+
+const FEED_LIMIT = 100;
+
+/** Reviews written by the users the viewer follows, newest first. Empty when the viewer follows no one. */
+export async function getFeedReviews(viewerId: string): Promise<ProfileReviewDTO[]> {
+  const following = await prisma.follow.findMany({
+    where: { followerId: viewerId },
+    select: { followingId: true },
+  });
+  if (following.length === 0) return [];
+
+  const reviews = await prisma.review.findMany({
+    where: { userId: { in: following.map((f) => f.followingId) } },
+    orderBy: { createdAt: "desc" },
+    take: FEED_LIMIT,
+  });
+  return buildProfileReviews(reviews, viewerId);
 }
