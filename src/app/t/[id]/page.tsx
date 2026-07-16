@@ -12,7 +12,8 @@ import { ReviewSection } from "@/components/review-section";
 import { PublicReviewList } from "@/components/public-review-list";
 import { FeaturesCarousel } from "@/components/features-carousel";
 import { AddToWatchlistButton } from "@/components/add-to-watchlist-button";
-import { getReviewsForTitle, getPublicReviewsForTitle } from "@/lib/reviews";
+import { getReviewsForTitle } from "@/lib/reviews";
+import { getPublicTitleReviews } from "@/lib/public-title";
 import { formatRuntime } from "@/lib/utils";
 import { googleSearchUrl } from "@/lib/tmdb-shared";
 
@@ -151,7 +152,8 @@ export default async function TitlePage({ params }: { params: Promise<{ id: stri
   );
 }
 
-/** The logged-out review experience: anonymized reviews, a features carousel, and a sign-up CTA. */
+/** The logged-out review experience: read-only reviews (authors, ratings, likes, comments), a
+ *  features carousel, and a sign-up CTA. */
 async function PublicReviews({
   tmdbId,
   mediaType,
@@ -161,12 +163,17 @@ async function PublicReviews({
   mediaType: "MOVIE" | "TV";
   titleName: string;
 }) {
-  const reviews = await getPublicReviewsForTitle(tmdbId, mediaType);
+  const reviews = await getPublicTitleReviews(tmdbId, mediaType);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
       <div className="flex flex-col gap-4">
-        <h2 className="text-xl font-bold text-foreground">Reviews</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-xl font-bold text-foreground">Reviews</h2>
+          <Link href="/sign-in" className="text-xs font-medium text-accent hover:underline">
+            Sign in to like or comment
+          </Link>
+        </div>
         <PublicReviewList reviews={reviews} />
       </div>
       <aside className="flex flex-col gap-4">

@@ -17,6 +17,10 @@ const isPublicRoute = createRouteMatcher([
   "/t/:id",
   "/u/:handle",
   "/list",
+  // Logged-out visitors can browse: search TMDB, view the people directory. These are read-only
+  // (adding to a watchlist still happens client-side via the ghost store until sign-in).
+  "/people",
+  "/api/search",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

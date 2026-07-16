@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: "/#watched", label: "Watched" },
   { href: "/#watchlist", label: "Watchlist" },
   { href: "/#discover", label: "Discover" },
+  { href: "/people", label: "People" },
   { href: "/feed", label: "Feed" },
   { href: "/notifications", label: "Notifications" },
   { href: "/stats", label: "Stats" },
@@ -99,9 +100,17 @@ export function SiteHeader() {
               </Link>
             </div>
           )}
+          {/* Browsing (search + people directory) works logged out, so guests get the People link too. */}
+          {signedOut && (
+            <nav className="hidden items-center gap-5 text-sm font-medium text-muted sm:flex">
+              <Link href="/people" className="transition-colors hover:text-foreground">
+                People
+              </Link>
+            </nav>
+          )}
         </div>
         <div className="flex flex-1 items-center gap-3 sm:justify-end">
-          {signedIn && <SearchBar />}
+          {(signedIn || signedOut) && <SearchBar />}
           <div className="hidden items-center gap-3 sm:flex">
             <ThemeToggle />
             {signedIn && <AccountMenu />}

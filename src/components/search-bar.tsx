@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
+import { useAuth } from "@clerk/nextjs";
 import { Search, Plus, Check, Loader2, X } from "lucide-react";
 import type { SearchResultDTO, TitleStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { MIN_YEAR, MAX_YEAR, parseYear } from "@/lib/tmdb-shared";
+import {
+  addGhostItem,
+  getGhostServerSnapshot,
+  getGhostSnapshot,
+  subscribeGhost,
+} from "@/lib/ghost-watchlist";
 
 const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 350;
@@ -37,6 +44,16 @@ export function SearchBar() {
   // Session-lived cache: re-typing or backspacing back to an already-seen query skips the network entirely.
   const cacheRef = useRef<Map<string, SearchResultDTO[]>>(new Map());
   const abortRef = useRef<AbortController | null>(null);
+
+  const { isSignedIn } = useAuth();
+  // Guests don't have a server collection; their "already added" state lives in the ghost store.
+  const ghostItems = useSyncExternalStore(subscribeGhost, getGhostSnapshot, getGhostServerSnapshot);
+
+  /** The add-state to show for a result: server collection when signed in, ghost store when not. */
+  function effectiveStatus(item: SearchResultDTO): TitleStatus | null {
+    if (isSignedIn) return item.alreadyAdded;
+    return ghostItems.find((g) => g.tmdbId === item.tmdbId && g.mediaType === item.mediaType)?.status ?? null;
+  }
 
   const year = parseYear(yearInput);
   const sortedResults = useMemo(() => sortResults(results, sortMode), [results, sortMode]);
@@ -98,6 +115,19 @@ export function SearchBar() {
   }, []);
 
   async function addTitle(item: SearchResultDTO, status: TitleStatus) {
+    // Guests save to the browser ghost store (merged into their account on sign-in); the
+    // useSyncExternalStore subscription re-renders the button state.
+    if (!isSignedIn) {
+      addGhostItem({
+        tmdbId: item.tmdbId,
+        mediaType: item.mediaType,
+        status,
+        title: item.title,
+        posterUrl: item.posterUrl,
+      });
+      return;
+    }
+
     const key = `${item.tmdbId}-${item.mediaType}`;
     setPendingKey(key);
     try {
@@ -185,6 +215,7 @@ export function SearchBar() {
           {sortedResults.map((item) => {
             const key = `${item.tmdbId}-${item.mediaType}`;
             const pending = pendingKey === key;
+            const added = effectiveStatus(item);
             return (
               <div key={key} className="flex items-center gap-3 border-b border-border p-3 last:border-b-0">
                 <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-md bg-surface">
@@ -201,29 +232,29 @@ export function SearchBar() {
                 <div className="flex shrink-0 gap-1.5">
                   <button
                     type="button"
-                    disabled={pending || item.alreadyAdded === "WATCHED"}
+                    disabled={pending || added === "WATCHED"}
                     onClick={() => addTitle(item, "WATCHED")}
                     className={cn(
                       "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer disabled:cursor-not-allowed",
-                      item.alreadyAdded === "WATCHED"
+                      added === "WATCHED"
                         ? "bg-accent/20 text-accent"
                         : "border border-border text-foreground hover:bg-surface"
                     )}
                   >
-                    {item.alreadyAdded === "WATCHED" ? <Check size={12} /> : "Watched"}
+                    {added === "WATCHED" ? <Check size={12} /> : "Watched"}
                   </button>
                   <button
                     type="button"
-                    disabled={pending || item.alreadyAdded === "WATCHLIST"}
+                    disabled={pending || added === "WATCHLIST"}
                     onClick={() => addTitle(item, "WATCHLIST")}
                     className={cn(
                       "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer disabled:cursor-not-allowed",
-                      item.alreadyAdded === "WATCHLIST"
+                      added === "WATCHLIST"
                         ? "bg-accent/20 text-accent"
                         : "border border-border text-foreground hover:bg-surface"
                     )}
                   >
-                    {item.alreadyAdded === "WATCHLIST" ? <Check size={12} /> : <Plus size={12} />}
+                    {added === "WATCHLIST" ? <Check size={12} /> : <Plus size={12} />}
                   </button>
                 </div>
               </div>

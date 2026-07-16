@@ -9,8 +9,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  // Public: logged-out visitors can search too. When signed in we also annotate which results are
+  // already in their collection; for a guest there's nothing to annotate (the browser ghost store
+  // tracks that client-side instead).
   const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const q = request.nextUrl.searchParams.get("q") ?? "";
   if (!q.trim()) {
@@ -24,16 +26,18 @@ export async function GET(request: NextRequest) {
     return Response.json({ results: [] });
   }
 
-  const existing = await prisma.title.findMany({
-    where: {
-      userId,
-      OR: results.map((r) => ({
-        tmdbId: r.tmdbId,
-        mediaType: r.mediaType === "tv" ? "TV" : "MOVIE",
-      })),
-    },
-    select: { tmdbId: true, mediaType: true, status: true },
-  });
+  const existing = userId
+    ? await prisma.title.findMany({
+        where: {
+          userId,
+          OR: results.map((r) => ({
+            tmdbId: r.tmdbId,
+            mediaType: r.mediaType === "tv" ? "TV" : "MOVIE",
+          })),
+        },
+        select: { tmdbId: true, mediaType: true, status: true },
+      })
+    : [];
   const existingMap = new Map(existing.map((e) => [`${e.tmdbId}-${e.mediaType}`, e.status]));
 
   const dto: SearchResultDTO[] = results.map((r) => {
