@@ -55,4 +55,23 @@ describe("PATCH /api/profile", () => {
     expect(res.status).toBe(409);
     await expect(res.json()).resolves.toEqual({ error: "That handle is already taken" });
   });
+
+  it("saves a trimmed bio", async () => {
+    updateMock.mockResolvedValue({ displayName: "Me", handle: "me" });
+    const res = await PATCH(req({ bio: "  Watches everything twice.  " }));
+    expect(res.status).toBe(200);
+    expect(updateMock).toHaveBeenCalledWith({ where: { userId: "me" }, data: { bio: "Watches everything twice." } });
+  });
+
+  it("clears the bio when given an empty string", async () => {
+    updateMock.mockResolvedValue({ displayName: "Me", handle: "me" });
+    await PATCH(req({ bio: "   " }));
+    expect(updateMock).toHaveBeenCalledWith({ where: { userId: "me" }, data: { bio: null } });
+  });
+
+  it("400s on an over-long bio", async () => {
+    const res = await PATCH(req({ bio: "x".repeat(301) }));
+    expect(res.status).toBe(400);
+    expect(updateMock).not.toHaveBeenCalled();
+  });
 });

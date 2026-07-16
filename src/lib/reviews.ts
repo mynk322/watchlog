@@ -101,13 +101,21 @@ export async function getProfilePage(
   const author = (await resolveReviewAuthors([profile.userId])).get(profile.userId)!;
   const profileReviews = await buildProfileReviews(reviews, viewerId);
 
+  const rated = reviews.filter((r) => r.rating != null);
+  const avgRating = rated.length ? rated.reduce((sum, r) => sum + (r.rating ?? 0), 0) / rated.length : null;
+  // buildProfileReviews already resolved per-review like counts — sum them rather than re-querying.
+  const likesReceived = profileReviews.reduce((sum, r) => sum + r.likeCount, 0);
+
   return {
     profile: {
       userId: profile.userId,
       displayName: author.displayName,
       handle: author.handle,
       avatarUrl: author.avatarUrl,
+      bio: profile.bio,
       reviewCount: reviews.length,
+      avgRating: avgRating == null ? null : Math.round(avgRating * 10) / 10,
+      likesReceived,
     },
     reviews: profileReviews,
   };

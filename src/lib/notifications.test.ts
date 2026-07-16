@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     notification: { create: vi.fn(), findMany: vi.fn(), count: vi.fn(), updateMany: vi.fn() },
+    review: { findMany: vi.fn() },
+    title: { findMany: vi.fn() },
   },
 }));
 
@@ -19,6 +21,8 @@ import { prisma } from "@/lib/prisma";
 import { createNotification, getNotifications, getUnreadCount, markAllRead } from "./notifications";
 
 const nMock = prisma.notification as unknown as Record<string, Mock>;
+const reviewMock = prisma.review as unknown as Record<string, Mock>;
+const titleMock = prisma.title as unknown as Record<string, Mock>;
 const now = new Date("2026-07-16T12:00:00.000Z");
 
 beforeEach(() => {
@@ -49,12 +53,29 @@ describe("createNotification", () => {
 });
 
 describe("getNotifications", () => {
-  it("resolves actor identities onto each row", async () => {
+  it("resolves actor identity and links a FOLLOW to the follower's profile (no review lookup)", async () => {
     nMock.findMany.mockResolvedValue([
       { id: "n1", userId: "me", actorId: "bob", type: "FOLLOW", reviewId: null, read: false, createdAt: now },
     ]);
     const list = await getNotifications("me");
-    expect(list[0]).toMatchObject({ id: "n1", type: "FOLLOW", actor: { handle: "handle-bob" }, read: false });
+    expect(list[0]).toMatchObject({ id: "n1", type: "FOLLOW", actor: { handle: "handle-bob" }, href: "/u/handle-bob" });
+    expect(reviewMock.findMany).not.toHaveBeenCalled(); // no reviewId → no enrichment queries
+  });
+
+  it("enriches a COMMENT with the review title and links to the review author's profile", async () => {
+    nMock.findMany.mockResolvedValue([
+      { id: "n2", userId: "me", actorId: "bob", type: "COMMENT", reviewId: "r1", read: false, createdAt: now },
+    ]);
+    reviewMock.findMany.mockResolvedValue([{ id: "r1", tmdbId: 550, mediaType: "MOVIE", userId: "carol" }]);
+    titleMock.findMany.mockResolvedValue([{ tmdbId: 550, mediaType: "MOVIE", title: "Fight Club" }]);
+
+    const list = await getNotifications("me");
+    expect(list[0]).toMatchObject({
+      type: "COMMENT",
+      actor: { handle: "handle-bob" },
+      reviewTitle: "Fight Club",
+      href: "/u/handle-carol", // the review author's profile, where the thread is visible
+    });
   });
 });
 

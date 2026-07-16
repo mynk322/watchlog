@@ -5,6 +5,7 @@ vi.mock("@/lib/profile", () => ({ ensureProfile: vi.fn() }));
 vi.mock("@/lib/comments", () => ({
   getCommentsForReview: vi.fn(),
   createComment: vi.fn(),
+  getCommentParticipants: vi.fn().mockResolvedValue([]),
   MAX_COMMENT_LENGTH: 2000,
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: { review: { findUnique: vi.fn() } } }));

@@ -6,6 +6,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+
 vi.mock("@/lib/profile", () => ({
   resolveReviewAuthors: vi.fn(async (ids: string[]) => {
     const unique = [...new Set(ids)];
@@ -16,7 +17,7 @@ vi.mock("@/lib/profile", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
-import { getCommentsForReview, createComment, deleteCommentsForReview } from "./comments";
+import { getCommentsForReview, createComment, deleteCommentsForReview, getCommentParticipants } from "./comments";
 
 const commentMock = prisma.comment as unknown as Record<string, Mock>;
 const now = new Date("2026-07-16T12:00:00.000Z");
@@ -55,5 +56,18 @@ describe("deleteCommentsForReview", () => {
     commentMock.deleteMany.mockResolvedValue({ count: 2 });
     await deleteCommentsForReview("r1");
     expect(commentMock.deleteMany).toHaveBeenCalledWith({ where: { reviewId: "r1" } });
+  });
+});
+
+describe("getCommentParticipants", () => {
+  it("returns distinct commenter ids for the review", async () => {
+    commentMock.findMany.mockResolvedValue([{ userId: "alice" }, { userId: "bob" }]);
+    const ids = await getCommentParticipants("r1");
+    expect(ids).toEqual(["alice", "bob"]);
+    expect(commentMock.findMany).toHaveBeenCalledWith({
+      where: { reviewId: "r1" },
+      select: { userId: true },
+      distinct: ["userId"],
+    });
   });
 });
