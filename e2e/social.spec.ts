@@ -152,7 +152,7 @@ test.describe.serial("follow, like, comment, feed, notifications", () => {
     await page.goto(`/u/${aliceHandle}`);
 
     // Alice rated a title highly (seeded) and Bob hasn't added it → it shows as a recommendation.
-    const recSection = page.locator("section", { has: page.getByRole("heading", { name: /Recommended from/ }) });
+    const recSection = page.locator("section", { has: page.getByRole("heading", { name: /Recommended by/ }) });
     await expect(recSection).toBeVisible();
 
     const recLink = recSection.getByRole("link").first();

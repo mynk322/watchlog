@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Film, Tv, Star } from "lucide-react";
+import { SectionHeading } from "./section-heading";
 import type { ProfileRecommendationDTO } from "@/lib/types";
 
 /**
@@ -18,10 +19,7 @@ export function ProfileRecommendations({
 
   return (
     <section className="mt-10">
-      <div className="mb-3 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-muted">Recommended from {displayName}</h2>
-        <span className="text-xs text-muted">Rated highly by them, picked for you</span>
-      </div>
+      <SectionHeading title={`Recommended by ${displayName}`} meta="Their favorites, picked for you" />
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
         {recommendations.map((rec) => {
           const MediaIcon = rec.mediaType === "TV" ? Tv : Film;

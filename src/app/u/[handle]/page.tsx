@@ -3,10 +3,11 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import { ProfileHeader } from "@/components/profile-header";
-import { ProfileReviewCard } from "@/components/profile-review-card";
+import { ProfileReviews } from "@/components/profile-reviews";
 import { FollowButton } from "@/components/follow-button";
 import { FavoritesStrip } from "@/components/favorites-strip";
 import { ProfileRecommendations } from "@/components/profile-recommendations";
+import { SectionHeading } from "@/components/section-heading";
 import { getProfilePage } from "@/lib/reviews";
 import { getFollowStats } from "@/lib/follows";
 import { getFavorites } from "@/lib/favorites";
@@ -71,15 +72,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
 
       <FavoritesStrip favorites={favorites} />
 
-      <ProfileRecommendations displayName={profile.displayName} recommendations={recommendations} />
+      <section className="mt-10">
+        <SectionHeading title="Reviews" meta={profile.reviewCount > 0 ? profile.reviewCount : undefined} />
+        <ProfileReviews reviews={reviews} />
+      </section>
 
-      <div className="mt-8 flex flex-col gap-4">
-        {reviews.length === 0 ? (
-          <p className="text-sm text-muted">No reviews yet.</p>
-        ) : (
-          reviews.map((review) => <ProfileReviewCard key={review.id} review={review} />)
-        )}
-      </div>
+      <ProfileRecommendations displayName={profile.displayName} recommendations={recommendations} />
     </div>
   );
 }

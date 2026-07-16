@@ -1,24 +1,25 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Film, Tv } from "lucide-react";
+import { SectionHeading } from "./section-heading";
 import type { FavoriteTitleDTO } from "@/lib/types";
 
 export function FavoritesStrip({ favorites }: { favorites: FavoriteTitleDTO[] }) {
   if (favorites.length === 0) return null;
 
   return (
-    <section className="mt-8">
-      <h2 className="mb-3 text-sm font-semibold text-muted">Favorites</h2>
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+    <section className="mt-10">
+      <SectionHeading title="Favorites" />
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
         {favorites.map((fav) => {
           const MediaIcon = fav.mediaType === "TV" ? Tv : Film;
           const poster = (
-            <div className="group relative aspect-2/3 overflow-hidden rounded-lg bg-surface-elevated">
+            <div className="relative aspect-2/3 overflow-hidden rounded-lg bg-surface-elevated shadow-sm">
               {fav.posterUrl ? (
-                <Image src={fav.posterUrl} alt={fav.title} fill sizes="120px" className="object-cover" />
+                <Image src={fav.posterUrl} alt={fav.title} fill sizes="200px" className="object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center">
-                  <MediaIcon size={20} className="text-muted" />
+                  <MediaIcon size={22} className="text-muted" />
                 </div>
               )}
             </div>
