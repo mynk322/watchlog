@@ -3,16 +3,13 @@ import { auth } from "@clerk/nextjs/server";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toTitleDTO } from "@/lib/dto";
+import { isValidRating } from "@/lib/validation";
 import type { TitleStatus } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const VALID_STATUSES: TitleStatus[] = ["WATCHED", "WATCHLIST"];
-
-function isValidRating(value: unknown): value is number {
-  return typeof value === "number" && value >= 0.5 && value <= 5 && Number.isInteger(value * 2);
-}
 
 function isValidEpisodeNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1;

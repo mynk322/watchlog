@@ -1,0 +1,74 @@
+import { User, Pencil, Trash2 } from "lucide-react";
+import { StarRating } from "./star-rating";
+import type { ReviewDTO } from "@/lib/types";
+
+interface ReviewListProps {
+  reviews: ReviewDTO[];
+  onEdit?: (review: ReviewDTO) => void;
+  onDelete?: (review: ReviewDTO) => void;
+}
+
+export function ReviewList({ reviews, onEdit, onDelete }: ReviewListProps) {
+  if (reviews.length === 0) {
+    return <p className="text-sm text-muted">No reviews yet — be the first to write one.</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {reviews.map((review) => (
+        <div key={review.id} className="rounded-2xl border border-border bg-surface p-4">
+          <div className="flex items-start gap-3">
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-surface-elevated">
+              {review.author.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- small decorative avatar, not worth the Image optimizer overhead
+                <img src={review.author.avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <User size={16} className="text-muted" />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{review.author.displayName}</p>
+                  <p className="truncate text-xs text-muted">@{review.author.handle}</p>
+                </div>
+                {review.isOwn && (onEdit || onDelete) && (
+                  <div className="flex shrink-0 items-center gap-1">
+                    {onEdit && (
+                      <button
+                        type="button"
+                        onClick={() => onEdit(review)}
+                        aria-label="Edit your review"
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-elevated hover:text-foreground cursor-pointer"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        type="button"
+                        onClick={() => onDelete(review)}
+                        aria-label="Delete your review"
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-elevated hover:text-foreground cursor-pointer"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              {review.rating != null && (
+                <div className="mt-1.5">
+                  <StarRating value={review.rating} readOnly size={13} variant="surface" />
+                </div>
+              )}
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{review.body}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

@@ -60,6 +60,29 @@ model UserSettings {
   updatedAt        DateTime @updatedAt
 }
 
+model Review {
+  id        String    @id @default(cuid())
+  userId    String
+  tmdbId    Int
+  mediaType MediaType
+  rating    Float?
+  body      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([tmdbId, mediaType, userId])
+  @@index([tmdbId, mediaType])
+  @@index([userId])
+}
+
+model Profile {
+  userId      String   @id
+  displayName String
+  handle      String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model SearchCache {
   id        String   @id @default(cuid())
   query     String   @unique

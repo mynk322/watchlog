@@ -64,3 +64,23 @@ export interface TrendingDTO {
   voteAverage: number;
   alreadyAdded: TitleStatus | null;
 }
+
+export interface ReviewAuthorDTO {
+  userId: string;
+  displayName: string;
+  handle: string;
+  avatarUrl: string | null;
+}
+
+export interface ReviewDTO {
+  id: string;
+  tmdbId: number;
+  mediaType: MediaType;
+  rating: number | null;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  author: ReviewAuthorDTO;
+  /** True when the review belongs to the requesting user — lets the client show edit/delete affordances. */
+  isOwn: boolean;
+}

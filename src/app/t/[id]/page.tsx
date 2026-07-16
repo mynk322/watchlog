@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { StarRating } from "@/components/star-rating";
 import { RatingBadge } from "@/components/rating-badge";
 import { ShareButton } from "@/components/share-button";
+import { ReviewSection } from "@/components/review-section";
+import { getReviewsForTitle } from "@/lib/reviews";
 import { formatRuntime } from "@/lib/utils";
 import { googleSearchUrl } from "@/lib/tmdb-shared";
 
@@ -33,10 +35,11 @@ export async function generateMetadata({
 
 export default async function TitlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const title = await getTitle(id);
-  if (!title) notFound();
+  const [title, { userId }] = await Promise.all([getTitle(id), auth()]);
+  if (!title || !userId) notFound();
 
   const href = title.watchUrl || googleSearchUrl(title.title, title.releaseYear);
+  const reviews = await getReviewsForTitle(title.tmdbId, title.mediaType, userId);
 
   return (
     <div className="relative">
@@ -105,6 +108,15 @@ export default async function TitlePage({ params }: { params: Promise<{ id: stri
             />
           </div>
         </div>
+      </div>
+
+      <div className="px-4 pb-16 sm:px-8">
+        <ReviewSection
+          tmdbId={title.tmdbId}
+          mediaType={title.mediaType}
+          initialReviews={reviews}
+          ratingHint={title.status === "WATCHED" ? title.rating : null}
+        />
       </div>
     </div>
   );
