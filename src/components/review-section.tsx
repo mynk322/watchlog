@@ -25,9 +25,15 @@ export function ReviewSection({ tmdbId, mediaType, initialReviews, ratingHint }:
   }
 
   async function handleDelete(review: ReviewDTO) {
+    if (!window.confirm("Delete your review? This can't be undone.")) return;
+    const previous = reviews;
     setReviews((prev) => prev.filter((r) => r.id !== review.id));
     setEditingReview(null);
-    await fetch(`/api/reviews/${review.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/reviews/${review.id}`, { method: "DELETE" }).catch(() => null);
+    if (!res || !res.ok) {
+      // Server rejected the delete — restore the optimistically removed review.
+      setReviews(previous);
+    }
   }
 
   const hiddenWhileEditingId = showForm ? (editingReview ?? ownReview)?.id : undefined;

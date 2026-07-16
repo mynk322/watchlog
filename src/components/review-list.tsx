@@ -1,6 +1,12 @@
 import { User, Pencil, Trash2 } from "lucide-react";
 import { StarRating } from "./star-rating";
+import { formatRelativeTime } from "@/lib/utils";
 import type { ReviewDTO } from "@/lib/types";
+
+/** Prisma sets createdAt/updatedAt in the same write, so treat sub-2s gaps as "not edited". */
+function wasEdited(review: ReviewDTO): boolean {
+  return new Date(review.updatedAt).getTime() - new Date(review.createdAt).getTime() > 2000;
+}
 
 interface ReviewListProps {
   reviews: ReviewDTO[];
@@ -32,7 +38,14 @@ export function ReviewList({ reviews, onEdit, onDelete }: ReviewListProps) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">{review.author.displayName}</p>
-                  <p className="truncate text-xs text-muted">@{review.author.handle}</p>
+                  <p className="truncate text-xs text-muted">
+                    @{review.author.handle}
+                    <span className="mx-1">&middot;</span>
+                    <time dateTime={review.createdAt} suppressHydrationWarning>
+                      {formatRelativeTime(review.createdAt)}
+                    </time>
+                    {wasEdited(review) && <span className="text-muted/70"> · edited</span>}
+                  </p>
                 </div>
                 {review.isOwn && (onEdit || onDelete) && (
                   <div className="flex shrink-0 items-center gap-1">

@@ -28,7 +28,7 @@ export function StarRating({ value, onChange, size = 16, readOnly = false, varia
 
   if (readOnly) {
     return (
-      <div className="inline-flex items-center gap-0.5">
+      <div className="inline-flex items-center gap-0.5" role="img" aria-label={`Rated ${value ?? 0} out of 5`}>
         {Array.from({ length: STAR_COUNT }).map((_, i) => (
           <StarGlyph key={i} filled={displayValue - i} size={size} variant={variant} />
         ))}
