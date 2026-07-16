@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   const { userId } = await auth();
 
   if (!userId) {
-    const { allowed } = rateLimit(`search:${clientIp(request)}`, GUEST_SEARCH_LIMIT, GUEST_SEARCH_WINDOW_MS);
+    const { allowed } = await rateLimit(`search:${clientIp(request)}`, GUEST_SEARCH_LIMIT, GUEST_SEARCH_WINDOW_MS);
     if (!allowed) {
       return Response.json(
         { error: "Search limit reached. Sign up free to keep searching.", limited: true },

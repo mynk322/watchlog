@@ -38,7 +38,7 @@ const TMDB_RESULT = {
 beforeEach(() => {
   vi.clearAllMocks();
   searchMock.mockResolvedValue([TMDB_RESULT]);
-  rateLimitMock.mockReturnValue({ allowed: true, remaining: 9, resetAt: 0 }); // under the limit by default
+  rateLimitMock.mockResolvedValue({ allowed: true, remaining: 9, resetAt: 0 }); // under the limit by default
 });
 
 describe("GET /api/search", () => {
@@ -70,7 +70,7 @@ describe("GET /api/search", () => {
 
   it("429s a guest who exceeds the search limit, before searching", async () => {
     authMock.mockResolvedValue({ userId: null });
-    rateLimitMock.mockReturnValue({ allowed: false, remaining: 0, resetAt: 0 });
+    rateLimitMock.mockResolvedValue({ allowed: false, remaining: 0, resetAt: 0 });
     const res = await GET(req("q=batman"));
     expect(res.status).toBe(429);
     await expect(res.json()).resolves.toMatchObject({ limited: true });

@@ -149,6 +149,16 @@ model SearchCache {
   fetchedAt DateTime @default(now())
 }
 
+// Shared fixed-window rate-limit counters. DB-backed (not in-memory) so the limit holds across
+// serverless instances without sticky sessions. `key` encodes the subject + window start.
+model RateLimit {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 model TrendingItem {
   id            String    @id @default(cuid())
   tmdbId        Int

@@ -1,13 +1,5 @@
-/**
- * Minimal in-memory fixed-window rate limiter. Best-effort and per-server-instance (no shared
- * store), which is fine for throttling anonymous/guest traffic — not a hard security control.
- */
-interface Bucket {
-  count: number;
-  resetAt: number;
-}
-
-const buckets = new Map<string, Bucket>();
+import "server-only";
+import { prisma } from "./prisma";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -16,21 +8,34 @@ export interface RateLimitResult {
   resetAt: number;
 }
 
-export function rateLimit(key: string, limit: number, windowMs: number, now: number = Date.now()): RateLimitResult {
-  const existing = buckets.get(key);
-  if (!existing || now >= existing.resetAt) {
-    const resetAt = now + windowMs;
-    buckets.set(key, { count: 1, resetAt });
-    return { allowed: true, remaining: limit - 1, resetAt };
+/**
+ * Shared fixed-window rate limiter backed by Postgres, so the limit holds across all serverless
+ * instances without sticky sessions. The per-window row is incremented atomically (upsert +
+ * `increment`). Fails OPEN: if the counter store errors, the request is allowed rather than blocked
+ * — this is a soft abuse throttle, not a hard security control.
+ */
+export async function rateLimit(
+  subject: string,
+  limit: number,
+  windowMs: number,
+  now: number = Date.now()
+): Promise<RateLimitResult> {
+  const windowStart = Math.floor(now / windowMs) * windowMs;
+  const resetAt = windowStart + windowMs;
+  const key = `${subject}:${windowStart}`;
+  try {
+    const row = await prisma.rateLimit.upsert({
+      where: { key },
+      create: { key, count: 1, expiresAt: new Date(resetAt) },
+      update: { count: { increment: 1 } },
+    });
+    return { allowed: row.count <= limit, remaining: Math.max(0, limit - row.count), resetAt };
+  } catch {
+    return { allowed: true, remaining: limit, resetAt };
   }
-  if (existing.count >= limit) {
-    return { allowed: false, remaining: 0, resetAt: existing.resetAt };
-  }
-  existing.count += 1;
-  return { allowed: true, remaining: limit - existing.count, resetAt: existing.resetAt };
 }
 
-/** Test-only: clears all buckets. */
-export function __resetRateLimit(): void {
-  buckets.clear();
+/** Deletes expired counter rows. Call periodically (e.g. from the cron refresh). */
+export async function cleanupRateLimits(now: number = Date.now()): Promise<void> {
+  await prisma.rateLimit.deleteMany({ where: { expiresAt: { lt: new Date(now) } } }).catch(() => {});
 }

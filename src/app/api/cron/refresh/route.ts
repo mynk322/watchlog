@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getDetails, getCredits, getTrending } from "@/lib/tmdb";
 import { toTmdbMediaType } from "@/lib/dto";
+import { cleanupRateLimits } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,7 +102,11 @@ export async function GET(request: NextRequest) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const [titlesResult, trendingResult] = await Promise.all([refreshExistingTitles(), refreshTrendingCache()]);
+  const [titlesResult, trendingResult] = await Promise.all([
+    refreshExistingTitles(),
+    refreshTrendingCache(),
+    cleanupRateLimits(), // drop expired rate-limit counter rows
+  ]);
 
   return Response.json({ ok: true, titles: titlesResult, trending: trendingResult });
 }
