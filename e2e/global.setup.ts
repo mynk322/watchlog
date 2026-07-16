@@ -44,8 +44,8 @@ async function resetAndSeed(aliceId: string, bobId: string, allIds: string[]): P
       [aliceId, bobId]
     );
     await pool.query(
-      `INSERT INTO "Title" (id, "userId", "tmdbId", "mediaType", title, "releaseYear", status, "addedAt", "updatedAt")
-       VALUES ($1, $2, $3, 'MOVIE'::"MediaType", $4, 1999, 'WATCHED'::"TitleStatus", now(), now())`,
+      `INSERT INTO "Title" (id, "userId", "tmdbId", "mediaType", title, "releaseYear", status, rating, genres, "addedAt", "updatedAt")
+       VALUES ($1, $2, $3, 'MOVIE'::"MediaType", $4, 1999, 'WATCHED'::"TitleStatus", 5, ARRAY['Drama'], now(), now())`,
       [ALICE_TITLE_ID, aliceId, ALICE_TITLE_TMDB, ALICE_TITLE_NAME]
     );
   } finally {

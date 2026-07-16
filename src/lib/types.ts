@@ -131,6 +131,19 @@ export interface CommentDTO {
   isOwn: boolean;
 }
 
+/** A recommendation shown on someone's profile: a title they rated highly, matched to the viewer. */
+export interface ProfileRecommendationDTO {
+  tmdbId: number;
+  mediaType: MediaType;
+  title: string;
+  posterUrl: string | null;
+  releaseYear: number | null;
+  /** The profile owner's Title row id — links to the public /t/[id] page. */
+  titleId: string;
+  /** The profile owner's own rating of this title. */
+  ownerRating: number;
+}
+
 /** A recent review shown on the public home ("what people are watching"). */
 export interface RecentReviewDTO {
   id: string;

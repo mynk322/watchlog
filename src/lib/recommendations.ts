@@ -3,7 +3,7 @@ import { prisma } from "./prisma";
 import { getRecommendations as tmdbRecommendations, type TmdbListItem } from "./tmdb";
 import { getTrendingItems } from "./trending";
 import { toTmdbMediaType } from "./dto";
-import type { MediaType, TrendingDTO } from "./types";
+import type { MediaType, ProfileRecommendationDTO, TrendingDTO } from "./types";
 
 // Seeding from more than a handful of titles adds TMDB calls for diminishing signal.
 const MAX_SEEDS = 6;
@@ -22,6 +22,72 @@ const cache = new Map<string, { result: RecommendationResult; expiresAt: number 
 
 function ownedKey(tmdbId: number, mediaType: MediaType): string {
   return `${tmdbId}:${mediaType}`;
+}
+
+const PROFILE_REC_LIMIT = 12;
+
+/**
+ * Recommendations surfaced on someone's profile: titles the profile owner rated highly (their own
+ * Title ratings), that the viewer hasn't added, ranked by how well they match the viewer's taste.
+ * Taste = the viewer's genre affinity (their watched titles' genres, weighted by rating); a
+ * candidate's score blends the owner's rating (60%) with that genre match (40%). Logged-out or
+ * taste-less viewers just get the owner's highest-rated. Returns [] for your own profile or when
+ * the owner has rated nothing / the viewer already has it all. Every item carries the owner's
+ * Title id so the card links to the public title page.
+ */
+export async function getProfileRecommendations(
+  profileUserId: string,
+  viewerId: string | null
+): Promise<ProfileRecommendationDTO[]> {
+  if (viewerId && viewerId === profileUserId) return []; // don't recommend a profile to itself
+
+  const ownerTitles = await prisma.title.findMany({
+    where: { userId: profileUserId, status: "WATCHED", rating: { not: null } },
+    select: { id: true, tmdbId: true, mediaType: true, title: true, posterUrl: true, releaseYear: true, rating: true, genres: true },
+    orderBy: { rating: "desc" },
+  });
+  if (ownerTitles.length === 0) return [];
+
+  // Viewer taste: exclude what they already have, and build a genre-affinity map from their titles.
+  const viewerOwnedKeys = new Set<string>();
+  const genreAffinity = new Map<string, number>();
+  if (viewerId) {
+    const viewerTitles = await prisma.title.findMany({
+      where: { userId: viewerId },
+      select: { tmdbId: true, mediaType: true, status: true, rating: true, genres: true },
+    });
+    for (const t of viewerTitles) {
+      viewerOwnedKeys.add(ownedKey(t.tmdbId, t.mediaType));
+      const weight = t.status === "WATCHED" ? (t.rating ?? 3) / 5 : 0.3;
+      for (const g of t.genres) genreAffinity.set(g, (genreAffinity.get(g) ?? 0) + weight);
+    }
+  }
+
+  const candidates = ownerTitles.filter((t) => !viewerOwnedKeys.has(ownedKey(t.tmdbId, t.mediaType)));
+  if (candidates.length === 0) return [];
+
+  const rawGenre = candidates.map((c) => c.genres.reduce((sum, g) => sum + (genreAffinity.get(g) ?? 0), 0));
+  const maxGenre = Math.max(0, ...rawGenre);
+
+  return candidates
+    .map((c, i) => {
+      const ownerScore = (c.rating ?? 0) / 5;
+      const genreBoost = maxGenre > 0 ? rawGenre[i] / maxGenre : 0;
+      // Blend owner rating + viewer taste; with no taste signal, rank purely by the owner's rating.
+      const score = maxGenre > 0 ? ownerScore * 0.6 + genreBoost * 0.4 : ownerScore;
+      return { c, score };
+    })
+    .sort((a, b) => b.score - a.score || (b.c.rating ?? 0) - (a.c.rating ?? 0))
+    .slice(0, PROFILE_REC_LIMIT)
+    .map(({ c }) => ({
+      tmdbId: c.tmdbId,
+      mediaType: c.mediaType,
+      title: c.title,
+      posterUrl: c.posterUrl,
+      releaseYear: c.releaseYear,
+      titleId: c.id,
+      ownerRating: c.rating!,
+    }));
 }
 
 function toDTO(item: TmdbListItem): TrendingDTO {

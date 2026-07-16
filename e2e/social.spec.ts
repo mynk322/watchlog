@@ -145,4 +145,21 @@ test.describe.serial("follow, like, comment, feed, notifications", () => {
     await expect(page.getByText(reviewBody)).toHaveCount(0);
     await page.close();
   });
+
+  test("Bob sees recommendations from Alice's profile, and they link to the title page", async ({ browser }) => {
+    const page = await browser.newPage();
+    await signIn(page, USERS.bob);
+    await page.goto(`/u/${aliceHandle}`);
+
+    // Alice rated a title highly (seeded) and Bob hasn't added it → it shows as a recommendation.
+    const recSection = page.locator("section", { has: page.getByRole("heading", { name: /Recommended from/ }) });
+    await expect(recSection).toBeVisible();
+
+    const recLink = recSection.getByRole("link").first();
+    await expect(recLink).toHaveAttribute("href", /\/t\//);
+    await recLink.click();
+    await expect(page).toHaveURL(/\/t\//);
+    await expect(page.getByRole("heading", { name: ALICE_TITLE_NAME })).toBeVisible();
+    await page.close();
+  });
 });

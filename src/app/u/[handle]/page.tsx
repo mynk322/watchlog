@@ -6,9 +6,11 @@ import { ProfileHeader } from "@/components/profile-header";
 import { ProfileReviewCard } from "@/components/profile-review-card";
 import { FollowButton } from "@/components/follow-button";
 import { FavoritesStrip } from "@/components/favorites-strip";
+import { ProfileRecommendations } from "@/components/profile-recommendations";
 import { getProfilePage } from "@/lib/reviews";
 import { getFollowStats } from "@/lib/follows";
 import { getFavorites } from "@/lib/favorites";
+import { getProfileRecommendations } from "@/lib/recommendations";
 
 export const dynamic = "force-dynamic";
 
@@ -37,9 +39,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
 
   const { profile, reviews } = data;
   const isOwner = userId != null && profile.userId === userId;
-  const [followStats, favorites] = await Promise.all([
+  const [followStats, favorites, recommendations] = await Promise.all([
     getFollowStats(profile.userId, userId),
     getFavorites(profile.userId, userId),
+    getProfileRecommendations(profile.userId, userId),
   ]);
 
   return (
@@ -67,6 +70,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
       </div>
 
       <FavoritesStrip favorites={favorites} />
+
+      <ProfileRecommendations displayName={profile.displayName} recommendations={recommendations} />
 
       <div className="mt-8 flex flex-col gap-4">
         {reviews.length === 0 ? (
