@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { TitleGrid } from "@/components/title-grid";
-import { DiscoverRow } from "@/components/discover-row";
+import { RecommendationsRow } from "@/components/recommendations-row";
 import { HeroPosterWall } from "@/components/hero-poster-wall";
 import { PublicHome } from "@/components/public-home";
 
@@ -99,10 +99,9 @@ export default async function Home() {
 
         <section id="discover" className="scroll-mt-24">
           <div className="mb-6 flex items-baseline justify-between">
-            <h2 className="text-2xl font-bold text-foreground">Discover</h2>
-            <span className="text-sm text-muted">Trending this week</span>
+            <h2 className="text-2xl font-bold text-foreground">Recommended for you</h2>
           </div>
-          <DiscoverRow />
+          <RecommendationsRow />
         </section>
       </div>
     </div>

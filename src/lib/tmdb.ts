@@ -311,3 +311,17 @@ export async function getTrending(window: "day" | "week" = "week"): Promise<Tmdb
   trendingCacheStore.set(window, { data: results, expiresAt: Date.now() + TRENDING_CACHE_TTL_MS });
   return results;
 }
+
+/**
+ * TMDB's own "because you watched X" recommendations for a title (collaborative-filtered from TMDB
+ * user behavior). Results are all the same media type as the seed. Returns [] on any failure so a
+ * single bad seed never sinks the whole recommendation pass.
+ */
+export async function getRecommendations(tmdbId: number, mediaType: MediaType): Promise<TmdbListItem[]> {
+  try {
+    const data = await tmdbFetch<{ results: RawSearchItem[] }>(`/${mediaType}/${tmdbId}/recommendations`);
+    return data.results.map((r) => normalizeItem(r, mediaType));
+  } catch {
+    return [];
+  }
+}
