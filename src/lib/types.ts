@@ -72,6 +72,25 @@ export interface ReviewAuthorDTO {
   avatarUrl: string | null;
 }
 
+export interface ProfileDTO {
+  userId: string;
+  displayName: string;
+  handle: string;
+  avatarUrl: string | null;
+  reviewCount: number;
+}
+
+/** The title a review is about, resolved for display on a profile page (Title rows are per-user, so this comes from whichever user's row has it). */
+export interface ReviewTitleRefDTO {
+  tmdbId: number;
+  mediaType: MediaType;
+  title: string;
+  releaseYear: number | null;
+  posterUrl: string | null;
+  /** The viewer's own Title row id, if they've added this title — lets the card link to /t/[id]. Null when the viewer hasn't added it. */
+  viewerTitleId: string | null;
+}
+
 export interface ReviewDTO {
   id: string;
   tmdbId: number;
@@ -83,4 +102,9 @@ export interface ReviewDTO {
   author: ReviewAuthorDTO;
   /** True when the review belongs to the requesting user — lets the client show edit/delete affordances. */
   isOwn: boolean;
+}
+
+/** A review shown on a profile page: the base review plus the title it's about. */
+export interface ProfileReviewDTO extends ReviewDTO {
+  title: ReviewTitleRefDTO;
 }

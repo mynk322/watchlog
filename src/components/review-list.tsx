@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { User, Pencil, Trash2 } from "lucide-react";
 import { StarRating } from "./star-rating";
 import { formatRelativeTime } from "@/lib/utils";
@@ -37,9 +38,16 @@ export function ReviewList({ reviews, onEdit, onDelete }: ReviewListProps) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{review.author.displayName}</p>
+                  <Link
+                    href={`/u/${review.author.handle}`}
+                    className="block truncate text-sm font-semibold text-foreground hover:underline"
+                  >
+                    {review.author.displayName}
+                  </Link>
                   <p className="truncate text-xs text-muted">
-                    @{review.author.handle}
+                    <Link href={`/u/${review.author.handle}`} className="hover:underline">
+                      @{review.author.handle}
+                    </Link>
                     <span className="mx-1">&middot;</span>
                     <time dateTime={review.createdAt} suppressHydrationWarning>
                       {formatRelativeTime(review.createdAt)}
