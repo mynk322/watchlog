@@ -124,7 +124,7 @@ describe("getProfileRecommendations", () => {
     const recs = await getProfileRecommendations("owner", "viewer");
     expect(recs.map((r) => r.titleId)).toEqual(["comedy", "drama"]); // Comedy boosted above Drama
     expect(recs.map((r) => r.tmdbId)).not.toContain(3); // viewer already has it → excluded
-    expect(recs[0]).toMatchObject({ titleId: "comedy", ownerRating: 5, title: "Comedy Pick" });
+    expect(recs[0]).toMatchObject({ titleId: "comedy", title: "Comedy Pick" });
   });
 
   it("ranks purely by the owner's rating for a logged-out viewer (no viewer-taste query)", async () => {

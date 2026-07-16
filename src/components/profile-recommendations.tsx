@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Film, Tv, Star } from "lucide-react";
+import { Film, Tv } from "lucide-react";
 import { SectionHeading } from "./section-heading";
 import type { ProfileRecommendationDTO } from "@/lib/types";
 
@@ -37,10 +37,6 @@ export function ProfileRecommendations({
                     <MediaIcon size={20} className="text-muted" />
                   </div>
                 )}
-                <div className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-full bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-gold">
-                  <Star size={9} className="fill-gold" />
-                  {rec.ownerRating}
-                </div>
               </div>
               <p className="truncate text-xs text-muted group-hover:text-foreground" title={rec.title}>
                 {rec.title}

@@ -140,8 +140,6 @@ export interface ProfileRecommendationDTO {
   releaseYear: number | null;
   /** The profile owner's Title row id — links to the public /t/[id] page. */
   titleId: string;
-  /** The profile owner's own rating of this title. */
-  ownerRating: number;
 }
 
 /** A recent review shown on the public home ("what people are watching"). */

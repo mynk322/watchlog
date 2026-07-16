@@ -33,7 +33,9 @@ const PROFILE_REC_LIMIT = 30;
  * collection — not just the ones they wrote a review for), that the viewer hasn't added, in one
  * ranked list. Score = 60% the owner's own rating + 40% how well the title matches the viewer's
  * taste (their watched titles' genre affinity, weighted by rating). Logged-out / taste-less viewers
- * fall back to purely the owner's rating. Returns [] for your own profile or when the owner has
+ * fall back to purely the owner's rating. The owner's rating is used ONLY to rank — it is never
+ * returned to the client or displayed, so the profile surfaces *what* the owner liked without
+ * exposing their private rating values. Returns [] for your own profile or when the owner has
  * rated nothing the viewer doesn't already have.
  */
 export async function getProfileRecommendations(
@@ -98,7 +100,6 @@ export async function getProfileRecommendations(
       posterUrl: t.posterUrl,
       releaseYear: t.releaseYear,
       titleId: t.id,
-      ownerRating: t.rating!,
     }));
 }
 
