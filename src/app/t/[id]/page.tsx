@@ -12,8 +12,10 @@ import { ReviewSection } from "@/components/review-section";
 import { PublicReviewList } from "@/components/public-review-list";
 import { FeaturesCarousel } from "@/components/features-carousel";
 import { AddToWatchlistButton } from "@/components/add-to-watchlist-button";
+import { FavoriteButton } from "@/components/favorite-button";
 import { getReviewsForTitle } from "@/lib/reviews";
 import { getPublicTitleReviews } from "@/lib/public-title";
+import { isFavorited } from "@/lib/favorites";
 import { formatRuntime } from "@/lib/utils";
 import { googleSearchUrl } from "@/lib/tmdb-shared";
 
@@ -55,6 +57,8 @@ export default async function TitlePage({ params }: { params: Promise<{ id: stri
   if (!title) notFound();
 
   const viewerTitle = userId ? await getViewerTitle(title.tmdbId, title.mediaType, userId) : null;
+  // Only titles the viewer has added can be favorited.
+  const favorited = userId && viewerTitle ? await isFavorited(userId, title.tmdbId, title.mediaType) : false;
   const href = title.watchUrl || googleSearchUrl(title.title, title.releaseYear);
 
   return (
@@ -122,6 +126,9 @@ export default async function TitlePage({ params }: { params: Promise<{ id: stri
                 title={title.title}
                 posterUrl={title.posterUrl}
               />
+            )}
+            {viewerTitle && (
+              <FavoriteButton tmdbId={title.tmdbId} mediaType={title.mediaType} initialFavorited={favorited} />
             )}
             <ShareButton
               url={`/t/${title.id}`}

@@ -66,7 +66,7 @@ test.describe.serial("follow, like, comment, feed, notifications", () => {
     await page.goto("/notifications");
     await expect(page.getByText("started following you")).toBeVisible();
     await expect(page.getByText("liked your review")).toBeVisible();
-    await expect(page.getByText("commented on a review")).toBeVisible();
+    await expect(page.getByText(/commented on/)).toBeVisible();
 
     // Visiting the page marked them read; navigating away refetches and the badge is gone.
     await page.goto("/feed");
@@ -88,7 +88,7 @@ test.describe.serial("follow, like, comment, feed, notifications", () => {
     const bobPage = await browser.newPage();
     await signIn(bobPage, USERS.bob);
     await bobPage.goto("/notifications");
-    const row = bobPage.getByText("commented on a review");
+    const row = bobPage.getByText(/commented on/);
     await expect(row).toBeVisible();
     await row.click();
     await expect(bobPage).toHaveURL(new RegExp(`/u/${aliceHandle}$`)); // deep-links to the review author

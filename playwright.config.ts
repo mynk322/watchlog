@@ -11,17 +11,23 @@ export default defineConfig({
   globalSetup: "./e2e/global.setup.ts",
   fullyParallel: false, // the social flows share seeded users and follow state
   workers: 1,
-  timeout: 60_000,
+  // Headroom for Next dev's first-hit route compilation when the whole suite runs cold.
+  // No retries: the social spec is serial with non-idempotent steps (comment creation), so a
+  // mid-group retry would double-create and fail — better to re-run the suite than auto-retry.
+  timeout: 90_000,
   expect: { timeout: 10_000 },
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
     trace: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // Run against a production build on a dedicated port (3100), not `next dev`. Prod has no
+  // per-route JIT compilation, so the full suite runs reliably under load; port 3100 also avoids
+  // clashing with a `next dev` a developer may have on 3000.
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000/sign-in",
-    reuseExistingServer: true, // a dev server is already running in this session
-    timeout: 120_000,
+    command: "npm run build && npx next start -p 3100",
+    url: "http://localhost:3100/sign-in",
+    reuseExistingServer: false,
+    timeout: 240_000,
   },
 });

@@ -128,6 +128,17 @@ export interface CommentDTO {
   isOwn: boolean;
 }
 
+/** A title pinned to a profile's favorites. Metadata is snapshotted at pin time. */
+export interface FavoriteTitleDTO {
+  tmdbId: number;
+  mediaType: MediaType;
+  title: string;
+  posterUrl: string | null;
+  releaseYear: number | null;
+  /** The viewer's own Title row id for this title, if they have it — for linking to /t/[id]. */
+  viewerTitleId: string | null;
+}
+
 export type NotificationType = "FOLLOW" | "LIKE" | "COMMENT";
 
 export interface NotificationDTO {

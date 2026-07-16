@@ -5,8 +5,10 @@ import { auth } from "@clerk/nextjs/server";
 import { ProfileHeader } from "@/components/profile-header";
 import { ProfileReviewCard } from "@/components/profile-review-card";
 import { FollowButton } from "@/components/follow-button";
+import { FavoritesStrip } from "@/components/favorites-strip";
 import { getProfilePage } from "@/lib/reviews";
 import { getFollowStats } from "@/lib/follows";
+import { getFavorites } from "@/lib/favorites";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +37,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
 
   const { profile, reviews } = data;
   const isOwner = userId != null && profile.userId === userId;
-  const followStats = await getFollowStats(profile.userId, userId);
+  const [followStats, favorites] = await Promise.all([
+    getFollowStats(profile.userId, userId),
+    getFavorites(profile.userId, userId),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-16 pt-24 sm:px-8">
@@ -60,6 +65,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
           !isOwner && <FollowButton targetUserId={profile.userId} initialIsFollowing={followStats.isFollowing} />
         )}
       </div>
+
+      <FavoritesStrip favorites={favorites} />
 
       <div className="mt-8 flex flex-col gap-4">
         {reviews.length === 0 ? (

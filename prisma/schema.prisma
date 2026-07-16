@@ -127,6 +127,21 @@ model Notification {
   @@index([userId, createdAt])
 }
 
+model ProfileFavorite {
+  userId      String // Clerk userId of the profile owner
+  tmdbId      Int
+  mediaType   MediaType
+  // Title metadata is snapshotted at pin time (copied from the user's own Title row) so favorites
+  // survive title deletion and don't need cross-user Title resolution to display.
+  title       String
+  posterUrl   String?
+  releaseYear Int?
+  createdAt   DateTime  @default(now())
+
+  @@id([userId, tmdbId, mediaType])
+  @@index([userId, createdAt])
+}
+
 model SearchCache {
   id        String   @id @default(cuid())
   query     String   @unique

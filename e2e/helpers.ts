@@ -3,6 +3,7 @@ import { createClerkClient } from "@clerk/backend";
 import dotenv from "dotenv";
 import type { Page } from "@playwright/test";
 import type { TestUser } from "./users";
+import { withClerkRetry } from "./clerk-retry";
 
 dotenv.config({ path: ".env.local" });
 dotenv.config({ path: ".env" });
@@ -13,11 +14,18 @@ function backend() {
   return createClerkClient({ secretKey });
 }
 
-/** Resolves the seeded user's Clerk id. */
+// Memoize id lookups: the suite signs in ~15 times and Clerk's dev instance rate-limits, so we
+// must not call getUserList on every sign-in.
+const userIdCache = new Map<string, string>();
+
+/** Resolves the seeded user's Clerk id (cached per worker). */
 export async function userIdFor(user: TestUser): Promise<string> {
-  const list = await backend().users.getUserList({ emailAddress: [user.email] });
+  const cached = userIdCache.get(user.email);
+  if (cached) return cached;
+  const list = await withClerkRetry(() => backend().users.getUserList({ emailAddress: [user.email] }));
   const found = list.data[0];
   if (!found) throw new Error(`Seeded user not found: ${user.email}`);
+  userIdCache.set(user.email, found.id);
   return found.id;
 }
 
@@ -28,7 +36,9 @@ export async function userIdFor(user: TestUser): Promise<string> {
 export async function signIn(page: Page, user: TestUser): Promise<void> {
   const clerkBackend = backend();
   const userId = await userIdFor(user);
-  const { token } = await clerkBackend.signInTokens.createSignInToken({ userId, expiresInSeconds: 60 * 10 });
+  const { token } = await withClerkRetry(() =>
+    clerkBackend.signInTokens.createSignInToken({ userId, expiresInSeconds: 60 * 10 })
+  );
 
   await setupClerkTestingToken({ page });
   await page.goto("/sign-in");

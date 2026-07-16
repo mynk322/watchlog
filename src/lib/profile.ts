@@ -53,9 +53,16 @@ export async function resolveAuthors(userIds: string[]): Promise<Map<string, { d
 /** Batched Clerk lookup for avatars — resolved live rather than cached, since there's no webhook to keep a cached copy fresh. */
 export async function resolveAvatars(userIds: string[]): Promise<Map<string, string>> {
   if (userIds.length === 0) return new Map();
-  const client = await clerkClient();
-  const { data: users } = await client.users.getUserList({ userId: userIds, limit: Math.min(userIds.length, 100) });
-  return new Map(users.map((u) => [u.id, u.imageUrl]));
+  try {
+    const client = await clerkClient();
+    const { data: users } = await client.users.getUserList({ userId: userIds, limit: Math.min(userIds.length, 100) });
+    return new Map(users.map((u) => [u.id, u.imageUrl]));
+  } catch (err) {
+    // Avatars are decorative and come from Clerk's Backend API (rate-limited). A hiccup there must
+    // not 500 the page — fall back to no avatars (the UI shows a default icon).
+    console.error("[resolveAvatars] Clerk lookup failed; rendering without avatars", err);
+    return new Map();
+  }
 }
 
 export interface ResolvedAuthor {
