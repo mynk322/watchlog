@@ -40,6 +40,8 @@ export interface TmdbDetails extends TmdbListItem {
   runtime: number | null;
   watchUrl: string | null;
   numberOfSeasons: number | null;
+  /** TV only — episode count per season, 1-indexed (index 0 = season 1). Excludes season 0 (specials). */
+  seasonEpisodeCounts: number[];
   /** TV only — from `created_by`, already present on the details response at no extra call cost. */
   creators: DirectorCredit[];
 }
@@ -208,9 +210,22 @@ interface RawDetails {
   genres?: { id: number; name: string }[];
   runtime?: number;
   episode_run_time?: number[];
+  /** TMDB stopped populating episode_run_time for most TV shows; this is the fallback source for per-episode runtime. */
+  last_episode_to_air?: { runtime?: number | null } | null;
   homepage?: string;
   number_of_seasons?: number;
+  seasons?: { season_number: number; episode_count: number }[];
   created_by?: { id: number; name: string; profile_path: string | null }[];
+}
+
+/** Builds a 1-indexed (index 0 = season 1) episode-count array from TMDB's seasons list, dropping season 0 (specials). */
+function extractSeasonEpisodeCounts(seasons: RawDetails["seasons"]): number[] {
+  const numbered = (seasons ?? []).filter((s) => s.season_number >= 1);
+  if (numbered.length === 0) return [];
+  const maxSeason = Math.max(...numbered.map((s) => s.season_number));
+  const counts = new Array(maxSeason).fill(0);
+  for (const s of numbered) counts[s.season_number - 1] = s.episode_count;
+  return counts;
 }
 
 export async function getDetails(tmdbId: number, mediaType: MediaType): Promise<TmdbDetails> {
@@ -221,7 +236,7 @@ export async function getDetails(tmdbId: number, mediaType: MediaType): Promise<
   const title = raw.title ?? raw.name ?? "Untitled";
   const dateStr = raw.release_date || raw.first_air_date || null;
   const releaseYear = dateStr ? Number(dateStr.slice(0, 4)) || null : null;
-  const runtime = raw.runtime ?? raw.episode_run_time?.[0] ?? null;
+  const runtime = raw.runtime ?? raw.episode_run_time?.[0] ?? raw.last_episode_to_air?.runtime ?? null;
   return {
     tmdbId: raw.id,
     mediaType,
@@ -237,6 +252,7 @@ export async function getDetails(tmdbId: number, mediaType: MediaType): Promise<
     runtime,
     watchUrl: watchUrl ?? raw.homepage ?? null,
     numberOfSeasons: mediaType === "tv" ? raw.number_of_seasons ?? null : null,
+    seasonEpisodeCounts: mediaType === "tv" ? extractSeasonEpisodeCounts(raw.seasons) : [],
     creators:
       mediaType === "tv"
         ? (raw.created_by ?? []).map((c) => ({

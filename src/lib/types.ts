@@ -32,6 +32,7 @@ export interface TitleDTO {
   currentSeason: number | null;
   currentEpisode: number | null;
   totalSeasons: number | null;
+  seasonEpisodeCounts: number[];
   topCast: CastMemberDTO[] | null;
   directors: DirectorCreditDTO[] | null;
   watchUrl: string | null;

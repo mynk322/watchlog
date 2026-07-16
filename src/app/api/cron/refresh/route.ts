@@ -61,6 +61,7 @@ async function refreshExistingTitles() {
           runtime: details.runtime,
           watchUrl: details.watchUrl,
           totalSeasons: details.numberOfSeasons,
+          seasonEpisodeCounts: details.seasonEpisodeCounts,
           ...creditsUpdate,
         },
       });

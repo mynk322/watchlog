@@ -13,6 +13,7 @@ interface ShowProgress {
   currentSeason: number | null;
   currentEpisode: number | null;
   totalSeasons: number | null;
+  seasonEpisodeCounts: number[];
 }
 
 interface PosterCardProps {
@@ -58,9 +59,10 @@ export function PosterCard({
     e.stopPropagation();
   }
 
+  const episodeCap = progress?.seasonEpisodeCounts[(progress.currentSeason ?? 1) - 1];
   const progressLabel =
     progress && (progress.currentSeason || progress.currentEpisode)
-      ? `S${progress.currentSeason ?? 1} · E${progress.currentEpisode ?? 0}`
+      ? `S${progress.currentSeason ?? 1} · E${progress.currentEpisode ?? 0}${episodeCap ? `/${episodeCap}` : ""}`
       : null;
 
   return (

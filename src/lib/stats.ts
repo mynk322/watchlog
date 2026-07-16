@@ -92,46 +92,65 @@ function topDirectorPeople(rows: { directors: unknown }[]): PersonStat[] {
   return [...byId.values()].sort((a, b) => b.count - a.count).slice(0, TOP_PEOPLE_COUNT);
 }
 
-export async function getWatchStats(): Promise<WatchStats> {
+/**
+ * currentEpisode is a pointer within the *current* season, not a running total — a show
+ * advanced through several completed seasons needs those prior seasons' episode counts added
+ * back in. A show marked WATCHED without ever touching the per-episode tracker (currentSeason
+ * and currentEpisode both null) is assumed fully watched rather than contributing zero.
+ */
+function estimatedEpisodesWatched(t: {
+  currentSeason: number | null;
+  currentEpisode: number | null;
+  seasonEpisodeCounts: number[];
+}): number {
+  if (t.currentSeason === null && t.currentEpisode === null) {
+    return t.seasonEpisodeCounts.reduce((sum, count) => sum + count, 0);
+  }
+  const season = t.currentSeason ?? 1;
+  const completedSeasonEpisodes = t.seasonEpisodeCounts.slice(0, season - 1).reduce((sum, count) => sum + count, 0);
+  return completedSeasonEpisodes + (t.currentEpisode ?? 0);
+}
+
+export async function getWatchStats(userId: string): Promise<WatchStats> {
   const [movieAgg, tvTitles, genreRows, yearRows, ratingRows, ratingAvg, peopleRows] = await Promise.all([
     prisma.title.aggregate({
-      where: { status: "WATCHED", mediaType: "MOVIE" },
+      where: { status: "WATCHED", mediaType: "MOVIE", userId },
       _count: true,
       _sum: { runtime: true },
     }),
     prisma.title.findMany({
-      where: { status: "WATCHED", mediaType: "TV" },
-      select: { runtime: true, currentEpisode: true },
+      where: { status: "WATCHED", mediaType: "TV", userId },
+      select: { runtime: true, currentSeason: true, currentEpisode: true, seasonEpisodeCounts: true },
     }),
     prisma.$queryRaw<{ genre: string; count: bigint }[]>`
       SELECT unnest(genres) AS genre, count(*) AS count
       FROM "Title"
-      WHERE status = 'WATCHED'
+      WHERE status = 'WATCHED' AND "userId" = ${userId}
       GROUP BY genre
       ORDER BY count DESC
     `,
     prisma.title.groupBy({
       by: ["releaseYear"],
-      where: { status: "WATCHED", releaseYear: { not: null } },
+      where: { status: "WATCHED", releaseYear: { not: null }, userId },
       _count: true,
     }),
     prisma.title.groupBy({
       by: ["rating"],
-      where: { status: "WATCHED", rating: { not: null } },
+      where: { status: "WATCHED", rating: { not: null }, userId },
       _count: true,
     }),
     prisma.title.aggregate({
-      where: { status: "WATCHED", rating: { not: null } },
+      where: { status: "WATCHED", rating: { not: null }, userId },
       _avg: { rating: true },
     }),
     prisma.title.findMany({
-      where: { status: "WATCHED" },
+      where: { status: "WATCHED", userId },
       select: { watchedAt: true, topCast: true, directors: true },
     }),
   ]);
 
   const movieMinutes = movieAgg._sum.runtime ?? 0;
-  const tvMinutes = tvTitles.reduce((sum, t) => sum + (t.runtime ?? 0) * (t.currentEpisode ?? 0), 0);
+  const tvMinutes = tvTitles.reduce((sum, t) => sum + (t.runtime ?? 0) * estimatedEpisodesWatched(t), 0);
   const estimatedHours = Math.round((movieMinutes + tvMinutes) / 60);
 
   const sortedGenres = genreRows.map((r) => ({ label: r.genre, value: Number(r.count) }));

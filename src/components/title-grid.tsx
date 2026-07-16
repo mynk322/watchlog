@@ -39,6 +39,17 @@ function sortTitles(items: TitleDTO[], key: SortKey): TitleDTO[] {
   });
 }
 
+/** Episode count for the season the title is currently on, or null if unknown (not yet backfilled from TMDB). */
+function currentSeasonEpisodeCount(item: TitleDTO): number | null {
+  const season = item.currentSeason ?? 1;
+  return item.seasonEpisodeCounts[season - 1] ?? null;
+}
+
+function resolveInitialSortKey(status: TitleStatus, initial: string | null | undefined): SortKey {
+  const match = SORT_OPTIONS.find((o) => o.key === initial && o.statuses.includes(status));
+  return match ? match.key : "releaseYear";
+}
+
 function groupByYear(items: TitleDTO[]) {
   const groups = new Map<string, TitleDTO[]>();
   for (const item of items) {
@@ -53,10 +64,28 @@ function groupByYear(items: TitleDTO[]) {
   });
 }
 
-export function TitleGrid({ status, emptyHint }: { status: TitleStatus; emptyHint: string }) {
+export function TitleGrid({
+  status,
+  emptyHint,
+  initialSortKey,
+}: {
+  status: TitleStatus;
+  emptyHint: string;
+  initialSortKey?: string | null;
+}) {
   const { titles, loading, updateStatus, removeTitle, updateRating, updateProgress } = useTitles(status);
-  const [sortKey, setSortKey] = useState<SortKey>("releaseYear");
+  const [sortKey, setSortKey] = useState<SortKey>(() => resolveInitialSortKey(status, initialSortKey));
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
+
+  function changeSortKey(key: SortKey) {
+    setSortKey(key);
+    const field = status === "WATCHED" ? "watchedSortKey" : "watchlistSortKey";
+    fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: key }),
+    }).catch(() => {});
+  }
 
   const availableGenres = useMemo(() => {
     const set = new Set<string>();
@@ -96,6 +125,9 @@ export function TitleGrid({ status, emptyHint }: { status: TitleStatus; emptyHin
   }
 
   function renderCard(item: TitleDTO) {
+    const episodeCap = currentSeasonEpisodeCount(item);
+    const atEpisodeCap = episodeCap !== null && (item.currentEpisode ?? 0) >= episodeCap;
+
     return (
       <PosterCard
         key={item.id}
@@ -112,7 +144,12 @@ export function TitleGrid({ status, emptyHint }: { status: TitleStatus; emptyHin
         onRateChange={status === "WATCHED" ? (value) => updateRating(item.id, value) : undefined}
         progress={
           status === "WATCHED" && item.mediaType === "TV"
-            ? { currentSeason: item.currentSeason, currentEpisode: item.currentEpisode, totalSeasons: item.totalSeasons }
+            ? {
+                currentSeason: item.currentSeason,
+                currentEpisode: item.currentEpisode,
+                totalSeasons: item.totalSeasons,
+                seasonEpisodeCounts: item.seasonEpisodeCounts,
+              }
             : undefined
         }
         actions={
@@ -121,6 +158,7 @@ export function TitleGrid({ status, emptyHint }: { status: TitleStatus; emptyHin
               <>
                 <PillButton
                   icon={<Plus size={12} />}
+                  disabled={atEpisodeCap}
                   onClick={() =>
                     updateProgress(item.id, {
                       currentSeason: item.currentSeason ?? 1,
@@ -190,7 +228,7 @@ export function TitleGrid({ status, emptyHint }: { status: TitleStatus; emptyHin
         </div>
         <select
           value={sortKey}
-          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          onChange={(e) => changeSortKey(e.target.value as SortKey)}
           className="w-fit rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {SORT_OPTIONS.filter((o) => o.statuses.includes(status)).map((o) => (

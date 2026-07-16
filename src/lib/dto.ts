@@ -24,6 +24,7 @@ export function toTitleDTO(title: TitleModel): TitleDTO {
     currentSeason: title.currentSeason,
     currentEpisode: title.currentEpisode,
     totalSeasons: title.totalSeasons,
+    seasonEpisodeCounts: title.seasonEpisodeCounts,
     topCast: (title.topCast as unknown as CastMemberDTO[] | null) ?? null,
     directors: (title.directors as unknown as DirectorCreditDTO[] | null) ?? null,
     watchUrl: title.watchUrl,
