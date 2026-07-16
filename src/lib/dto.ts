@@ -1,7 +1,7 @@
 import type { TitleModel, ReviewModel } from "@/generated/prisma/models";
 import type { MediaType as TmdbMediaType } from "./tmdb";
 import type { ResolvedAuthor } from "./profile";
-import type { CastMemberDTO, DirectorCreditDTO, MediaType, ReviewDTO, TitleDTO } from "./types";
+import type { CastMemberDTO, DirectorCreditDTO, MediaType, PublicReviewDTO, ReviewDTO, TitleDTO } from "./types";
 
 export function toTmdbMediaType(mediaType: MediaType): TmdbMediaType {
   return mediaType === "TV" ? "tv" : "movie";
@@ -37,7 +37,7 @@ export function toTitleDTO(title: TitleModel): TitleDTO {
 export function toReviewDTO(
   review: ReviewModel,
   author: ResolvedAuthor,
-  viewerId: string,
+  viewerId: string | null,
   likes: { count: number; likedByViewer: boolean } = { count: 0, likedByViewer: false }
 ): ReviewDTO {
   return {
@@ -49,8 +49,19 @@ export function toReviewDTO(
     createdAt: review.createdAt.toISOString(),
     updatedAt: review.updatedAt.toISOString(),
     author,
-    isOwn: review.userId === viewerId,
+    isOwn: viewerId !== null && review.userId === viewerId,
     likeCount: likes.count,
     likedByViewer: likes.likedByViewer,
+  };
+}
+
+/** Strips a review down to its public, non-identifying content for logged-out share pages. */
+export function toPublicReviewDTO(review: ReviewModel): PublicReviewDTO {
+  return {
+    id: review.id,
+    rating: review.rating,
+    body: review.body,
+    createdAt: review.createdAt.toISOString(),
+    updatedAt: review.updatedAt.toISOString(),
   };
 }

@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
 import { likeReview, unlikeReview } from "@/lib/likes";
+import { createNotification } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +13,9 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
 
   const { id } = await params;
   await likeReview(userId, id);
+  // Notify the review's author that their review was liked.
+  const review = await prisma.review.findUnique({ where: { id }, select: { userId: true } });
+  if (review) await createNotification({ userId: review.userId, actorId: userId, type: "LIKE", reviewId: id });
   return Response.json({ liked: true });
 }
 

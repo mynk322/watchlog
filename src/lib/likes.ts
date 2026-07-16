@@ -26,13 +26,16 @@ export interface ReviewLikeInfo {
 }
 
 /** Batched like counts + the viewer's liked-state for a set of reviews. Reviews with no likes are absent from the map. */
-export async function resolveLikes(reviewIds: string[], viewerId: string): Promise<Map<string, ReviewLikeInfo>> {
+export async function resolveLikes(reviewIds: string[], viewerId: string | null): Promise<Map<string, ReviewLikeInfo>> {
   const result = new Map<string, ReviewLikeInfo>();
   if (reviewIds.length === 0) return result;
 
   const [counts, viewerLikes] = await Promise.all([
     prisma.reviewLike.groupBy({ by: ["reviewId"], where: { reviewId: { in: reviewIds } }, _count: { reviewId: true } }),
-    prisma.reviewLike.findMany({ where: { userId: viewerId, reviewId: { in: reviewIds } }, select: { reviewId: true } }),
+    // A logged-out viewer has no likes of their own — skip the query entirely.
+    viewerId
+      ? prisma.reviewLike.findMany({ where: { userId: viewerId, reviewId: { in: reviewIds } }, select: { reviewId: true } })
+      : Promise.resolve([] as { reviewId: string }[]),
   ]);
 
   const likedByViewer = new Set(viewerLikes.map((l) => l.reviewId));

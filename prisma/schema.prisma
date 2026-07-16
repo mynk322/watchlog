@@ -102,6 +102,30 @@ model ReviewLike {
   @@index([reviewId])
 }
 
+model Comment {
+  id        String   @id @default(cuid())
+  reviewId  String // Review.id — not a DB FK (Review has no relations); comments are cleaned up on review delete
+  userId    String // Clerk userId of the commenter
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reviewId, createdAt])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String // recipient (Clerk userId)
+  actorId   String // who triggered it (Clerk userId)
+  type      String // FOLLOW | LIKE | COMMENT
+  reviewId  String? // the review involved, for LIKE/COMMENT
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
 model SearchCache {
   id        String   @id @default(cuid())
   query     String   @unique

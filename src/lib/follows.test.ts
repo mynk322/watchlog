@@ -80,6 +80,15 @@ describe("getFollowStats", () => {
     expect(stats.isFollowing).toBe(false);
     expect(followMock.findUnique).not.toHaveBeenCalled();
   });
+
+  it("returns counts but never a follow for a logged-out (null) viewer", async () => {
+    followMock.count.mockImplementation(({ where }: { where: Record<string, string> }) =>
+      Promise.resolve(where.followingId ? 7 : 3)
+    );
+    const stats = await getFollowStats("profile", null);
+    expect(stats).toEqual({ followerCount: 7, followingCount: 3, isFollowing: false });
+    expect(followMock.findUnique).not.toHaveBeenCalled();
+  });
 });
 
 describe("getFollowers / getFollowing", () => {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { User, Pencil, Trash2 } from "lucide-react";
 import { StarRating } from "./star-rating";
 import { LikeButton } from "./like-button";
+import { CommentSection } from "./comment-section";
 import { formatRelativeTime } from "@/lib/utils";
 import type { ReviewDTO } from "@/lib/types";
 
@@ -87,8 +88,9 @@ export function ReviewList({ reviews, onEdit, onDelete }: ReviewListProps) {
                 </div>
               )}
               <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{review.body}</p>
-              <div className="mt-2">
+              <div className="mt-2 flex items-center gap-3">
                 <LikeButton reviewId={review.id} initialLiked={review.likedByViewer} initialCount={review.likeCount} />
+                <CommentSection reviewId={review.id} />
               </div>
             </div>
           </div>

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Film, Tv, User } from "lucide-react";
 import { StarRating } from "./star-rating";
 import { LikeButton } from "./like-button";
+import { CommentSection } from "./comment-section";
 import { formatRelativeTime } from "@/lib/utils";
 import type { ProfileReviewDTO } from "@/lib/types";
 
@@ -87,6 +88,9 @@ export function ProfileReviewCard({ review, showAuthor = false }: ProfileReviewC
               </time>
               {wasEdited(review) && <span className="text-muted/70"> · edited</span>}
             </p>
+          </div>
+          <div className="mt-2">
+            <CommentSection reviewId={review.id} />
           </div>
         </div>
       </div>

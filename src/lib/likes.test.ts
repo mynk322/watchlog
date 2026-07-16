@@ -63,4 +63,13 @@ describe("resolveLikes", () => {
     expect(map.get("r1")).toEqual({ count: 4, likedByViewer: true });
     expect(map.get("r2")).toEqual({ count: 0, likedByViewer: false });
   });
+
+  it("skips the viewer-likes query for a logged-out (null) viewer and reports counts only", async () => {
+    likeMock.groupBy.mockResolvedValue([{ reviewId: "r1", _count: { reviewId: 2 } }]);
+
+    const map = await resolveLikes(["r1", "r2"], null);
+    expect(likeMock.findMany).not.toHaveBeenCalled();
+    expect(map.get("r1")).toEqual({ count: 2, likedByViewer: false });
+    expect(map.get("r2")).toEqual({ count: 0, likedByViewer: false });
+  });
 });

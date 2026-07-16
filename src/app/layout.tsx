@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkProvider, Show } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SiteHeader } from "@/components/site-header";
+import { GhostMerge } from "@/components/ghost-merge";
 import { prisma } from "@/lib/prisma";
 import "./globals.css";
 
@@ -64,6 +65,9 @@ export default async function RootLayout({
       >
         <body suppressHydrationWarning className="min-h-full flex flex-col bg-background text-foreground">
           <ThemeProvider attribute="data-theme" defaultTheme={settings?.theme ?? "dark"} enableSystem={false}>
+            <Show when="signed-in">
+              <GhostMerge />
+            </Show>
             <SiteHeader />
             <main id="top" className="flex-1">
               {children}

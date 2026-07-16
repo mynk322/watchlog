@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { getDetails, getCredits } from "@/lib/tmdb";
-import { toTitleDTO, toTmdbMediaType } from "@/lib/dto";
+import { toTitleDTO } from "@/lib/dto";
+import { upsertTitleForUser } from "@/lib/titles";
 import type { MediaType, TitleStatus } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -41,49 +41,12 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "tmdbId, mediaType, and status are required" }, { status: 400 });
   }
 
-  let details;
+  let title;
   try {
-    details = await getDetails(tmdbId, toTmdbMediaType(mediaType));
+    title = await upsertTitleForUser(userId, { tmdbId, mediaType, status });
   } catch {
     return Response.json({ error: "Could not fetch title details from TMDB" }, { status: 502 });
   }
-
-  // Cast & crew are static once released — fetched once here (and by the cron backfill for
-  // pre-existing rows), never re-fetched.
-  const credits = await getCredits(tmdbId, toTmdbMediaType(mediaType));
-  const directors = mediaType === "TV" ? details.creators : credits.directors;
-
-  const title = await prisma.title.upsert({
-    where: { tmdbId_mediaType_userId: { tmdbId, mediaType, userId } },
-    create: {
-      userId,
-      tmdbId,
-      mediaType,
-      title: details.title,
-      releaseYear: details.releaseYear,
-      releaseDate: details.releaseDate ? new Date(details.releaseDate) : null,
-      posterUrl: details.posterUrl,
-      backdropUrl: details.backdropUrl,
-      overview: details.overview,
-      genres: details.genres,
-      voteAverage: details.voteAverage,
-      runtime: details.runtime,
-      watchUrl: details.watchUrl,
-      totalSeasons: details.numberOfSeasons,
-      seasonEpisodeCounts: details.seasonEpisodeCounts,
-      topCast: credits.cast as unknown as object,
-      directors: directors as unknown as object,
-      status,
-      watchedAt: status === "WATCHED" ? new Date() : null,
-    },
-    update: {
-      status,
-      watchedAt: status === "WATCHED" ? new Date() : null,
-      seasonEpisodeCounts: details.seasonEpisodeCounts,
-      topCast: credits.cast as unknown as object,
-      directors: directors as unknown as object,
-    },
-  });
 
   return Response.json({ title: toTitleDTO(title) }, { status: 201 });
 }

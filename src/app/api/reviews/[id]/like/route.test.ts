@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/likes", () => ({ likeReview: vi.fn(), unlikeReview: vi.fn() }));
+vi.mock("@/lib/prisma", () => ({ prisma: { review: { findUnique: vi.fn() } } }));
+vi.mock("@/lib/notifications", () => ({ createNotification: vi.fn() }));
 
 import { auth } from "@clerk/nextjs/server";
 import { likeReview, unlikeReview } from "@/lib/likes";

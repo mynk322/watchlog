@@ -3,8 +3,8 @@ import type { ReviewModel } from "@/generated/prisma/models";
 import { prisma } from "./prisma";
 import { resolveReviewAuthors } from "./profile";
 import { resolveLikes } from "./likes";
-import { toReviewDTO } from "./dto";
-import type { MediaType, ProfileDTO, ProfileReviewDTO, ReviewDTO } from "./types";
+import { toPublicReviewDTO, toReviewDTO } from "./dto";
+import type { MediaType, ProfileDTO, ProfileReviewDTO, PublicReviewDTO, ReviewDTO } from "./types";
 
 export async function getReviewsForTitle(tmdbId: number, mediaType: MediaType, viewerId: string): Promise<ReviewDTO[]> {
   const reviews = await prisma.review.findMany({
@@ -18,6 +18,18 @@ export async function getReviewsForTitle(tmdbId: number, mediaType: MediaType, v
   return reviews.map((r) => toReviewDTO(r, authors.get(r.userId)!, viewerId, likes.get(r.id)));
 }
 
+/**
+ * Reviews for a title, stripped of all author identity, for the logged-out public share page.
+ * Skips the Clerk author/avatar resolution entirely — nothing identifying reaches the client.
+ */
+export async function getPublicReviewsForTitle(tmdbId: number, mediaType: MediaType): Promise<PublicReviewDTO[]> {
+  const reviews = await prisma.review.findMany({
+    where: { tmdbId, mediaType },
+    orderBy: { createdAt: "desc" },
+  });
+  return reviews.map(toPublicReviewDTO);
+}
+
 function titleKey(tmdbId: number, mediaType: MediaType): string {
   return `${tmdbId}:${mediaType}`;
 }
@@ -28,7 +40,7 @@ function titleKey(tmdbId: number, mediaType: MediaType): string {
  * titles the viewer has added (so a card can deep-link into their own /t/[id]). A review can outlive
  * every Title row for its tmdbId (they aren't FK-linked), so metadata may be absent.
  */
-async function buildProfileReviews(reviews: ReviewModel[], viewerId: string): Promise<ProfileReviewDTO[]> {
+async function buildProfileReviews(reviews: ReviewModel[], viewerId: string | null): Promise<ProfileReviewDTO[]> {
   if (reviews.length === 0) return [];
 
   const distinctKeys = [...new Map(reviews.map((r) => [titleKey(r.tmdbId, r.mediaType), r])).values()];
@@ -50,7 +62,7 @@ async function buildProfileReviews(reviews: ReviewModel[], viewerId: string): Pr
     if (!existing || (!existing.posterUrl && t.posterUrl)) {
       metaByKey.set(key, { title: t.title, releaseYear: t.releaseYear, posterUrl: t.posterUrl });
     }
-    if (t.userId === viewerId) viewerTitleIdByKey.set(key, t.id);
+    if (viewerId && t.userId === viewerId) viewerTitleIdByKey.set(key, t.id);
   }
 
   return reviews.map((r) => {
@@ -76,7 +88,7 @@ async function buildProfileReviews(reviews: ReviewModel[], viewerId: string): Pr
  */
 export async function getProfilePage(
   handle: string,
-  viewerId: string
+  viewerId: string | null
 ): Promise<{ profile: ProfileDTO; reviews: ProfileReviewDTO[] } | null> {
   const profile = await prisma.profile.findUnique({ where: { handle } });
   if (!profile) return null;

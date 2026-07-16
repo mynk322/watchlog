@@ -112,6 +112,42 @@ export interface ProfileReviewDTO extends ReviewDTO {
   title: ReviewTitleRefDTO;
 }
 
+export interface CommentDTO {
+  id: string;
+  reviewId: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  author: ReviewAuthorDTO;
+  /** True when the comment belongs to the requesting user — gates edit/delete affordances. */
+  isOwn: boolean;
+}
+
+export type NotificationType = "FOLLOW" | "LIKE" | "COMMENT";
+
+export interface NotificationDTO {
+  id: string;
+  type: NotificationType;
+  /** The user who triggered the notification. */
+  actor: ReviewAuthorDTO;
+  /** The review involved, for LIKE/COMMENT; null for FOLLOW. */
+  reviewId: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+/**
+ * A review shown on a public, logged-out share page. Deliberately carries NO author identity
+ * (no userId, name, handle, or avatar) or viewer-specific state — only the review content.
+ */
+export interface PublicReviewDTO {
+  id: string;
+  rating: number | null;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface FollowStatsDTO {
   followerCount: number;
   followingCount: number;

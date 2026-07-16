@@ -22,7 +22,7 @@ vi.mock("@/lib/profile", () => ({
 vi.mock("@/lib/likes", () => ({ resolveLikes: vi.fn(async () => new Map()) }));
 
 import { prisma } from "@/lib/prisma";
-import { getFeedReviews, getProfilePage } from "./reviews";
+import { getFeedReviews, getProfilePage, getPublicReviewsForTitle } from "./reviews";
 
 const followMock = prisma.follow as unknown as Record<string, Mock>;
 const reviewMock = prisma.review as unknown as Record<string, Mock>;
@@ -101,5 +101,36 @@ describe("getProfilePage", () => {
     expect(page).not.toBeNull();
     expect(page!.profile).toMatchObject({ userId: "authorA", handle: "handle-authorA", reviewCount: 2 });
     expect(page!.reviews).toHaveLength(2);
+  });
+});
+
+describe("getPublicReviewsForTitle", () => {
+  it("returns review content with no author identity or viewer state (no PII)", async () => {
+    reviewMock.findMany.mockResolvedValue([makeReview({ userId: "secret-clerk-id" })]);
+
+    const out = await getPublicReviewsForTitle(10, "MOVIE");
+
+    expect(out).toHaveLength(1);
+    expect(out[0]).toEqual({
+      id: "r1",
+      rating: 4,
+      body: "great",
+      createdAt: "2026-07-16T12:00:00.000Z",
+      updatedAt: "2026-07-16T12:00:00.000Z",
+    });
+    // The whole point of the public DTO: nothing identifying leaks to the client.
+    expect(out[0]).not.toHaveProperty("author");
+    expect(out[0]).not.toHaveProperty("userId");
+    expect(out[0]).not.toHaveProperty("isOwn");
+    expect(JSON.stringify(out)).not.toContain("secret-clerk-id");
+  });
+
+  it("queries globally by tmdbId+mediaType, newest first", async () => {
+    reviewMock.findMany.mockResolvedValue([]);
+    await getPublicReviewsForTitle(55, "TV");
+    expect(reviewMock.findMany).toHaveBeenCalledWith({
+      where: { tmdbId: 55, mediaType: "TV" },
+      orderBy: { createdAt: "desc" },
+    });
   });
 });

@@ -16,7 +16,6 @@ export async function generateMetadata({
   params: Promise<{ handle: string }>;
 }): Promise<Metadata> {
   const { userId } = await auth();
-  if (!userId) return {};
   const { handle } = await params;
   const data = await getProfilePage(handle, userId);
   if (!data) return {};
@@ -27,13 +26,15 @@ export async function generateMetadata({
 }
 
 export default async function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
-  const { userId } = await auth.protect();
+  // Public, shareable page: a logged-out visitor sees the profile and its reviews, but no
+  // follow/edit affordances. The follower/following sub-pages stay auth-protected.
+  const { userId } = await auth();
   const { handle } = await params;
   const data = await getProfilePage(handle, userId);
   if (!data) notFound();
 
   const { profile, reviews } = data;
-  const isOwner = profile.userId === userId;
+  const isOwner = userId != null && profile.userId === userId;
   const followStats = await getFollowStats(profile.userId, userId);
 
   return (
@@ -48,7 +49,16 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
         <Link href={`/u/${profile.handle}/following`} className="text-sm text-muted hover:text-foreground">
           <span className="font-semibold text-foreground">{followStats.followingCount}</span> following
         </Link>
-        {!isOwner && <FollowButton targetUserId={profile.userId} initialIsFollowing={followStats.isFollowing} />}
+        {userId == null ? (
+          <Link
+            href="/sign-in"
+            className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90"
+          >
+            Sign in to follow
+          </Link>
+        ) : (
+          !isOwner && <FollowButton targetUserId={profile.userId} initialIsFollowing={followStats.isFollowing} />
+        )}
       </div>
 
       <div className="mt-8 flex flex-col gap-4">

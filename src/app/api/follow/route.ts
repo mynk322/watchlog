@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { follow, unfollow } from "@/lib/follows";
+import { createNotification } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
   if (target === userId) return Response.json({ error: "You can't follow yourself" }, { status: 400 });
 
   await follow(userId, target);
+  await createNotification({ userId: target, actorId: userId, type: "FOLLOW" });
   return Response.json({ isFollowing: true });
 }
 

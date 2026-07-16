@@ -3,12 +3,12 @@ import { prisma } from "./prisma";
 import { resolveReviewAuthors } from "./profile";
 import type { FollowStatsDTO, UserSummaryDTO } from "./types";
 
-/** Follower/following counts for a profile, plus whether the viewer follows it. */
-export async function getFollowStats(profileUserId: string, viewerId: string): Promise<FollowStatsDTO> {
+/** Follower/following counts for a profile, plus whether the viewer follows it. A null viewer (logged out) never follows. */
+export async function getFollowStats(profileUserId: string, viewerId: string | null): Promise<FollowStatsDTO> {
   const [followerCount, followingCount, viewerFollow] = await Promise.all([
     prisma.follow.count({ where: { followingId: profileUserId } }),
     prisma.follow.count({ where: { followerId: profileUserId } }),
-    viewerId === profileUserId
+    !viewerId || viewerId === profileUserId
       ? Promise.resolve(null)
       : prisma.follow.findUnique({
           where: { followerId_followingId: { followerId: viewerId, followingId: profileUserId } },

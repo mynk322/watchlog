@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveReviewAuthors } from "@/lib/profile";
 import { resolveLikes, deleteLikesForReview } from "@/lib/likes";
+import { deleteCommentsForReview } from "@/lib/comments";
 import { toReviewDTO } from "@/lib/dto";
 import { isValidRating } from "@/lib/validation";
 
@@ -60,7 +61,8 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   const { id } = await params;
   try {
     await prisma.review.delete({ where: { id, userId } });
-    await deleteLikesForReview(id); // no DB cascade — drop orphaned likes
+    // No DB cascade (Review has no relations) — drop the review's likes and comments.
+    await Promise.all([deleteLikesForReview(id), deleteCommentsForReview(id)]);
     return new Response(null, { status: 204 });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useAuth } from "@clerk/nextjs";
 import { Clapperboard, Menu, User, X } from "lucide-react";
 import { SearchBar } from "./search-bar";
 import { ThemeToggle } from "./theme-toggle";
+import { GhostListLink } from "./ghost-list-link";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -13,6 +14,7 @@ const NAV_LINKS = [
   { href: "/#watchlist", label: "Watchlist" },
   { href: "/#discover", label: "Discover" },
   { href: "/feed", label: "Feed" },
+  { href: "/notifications", label: "Notifications" },
   { href: "/stats", label: "Stats" },
   { href: "/me", label: "My profile" },
 ];
@@ -36,8 +38,14 @@ function AccountMenu() {
 }
 
 export function SiteHeader() {
+  const { isLoaded, isSignedIn } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Until Clerk resolves, render neither the authed nav nor the guest CTAs — avoids a flash of the
+  // wrong header. `<Show>` is a server-only async component, so a client header gates on useAuth.
+  const signedIn = isLoaded && isSignedIn === true;
+  const signedOut = isLoaded && isSignedIn === false;
 
   useEffect(() => {
     function onScroll() {
@@ -61,28 +69,53 @@ export function SiteHeader() {
             <Clapperboard size={22} className="text-accent" />
             Watchlog
           </Link>
-          <nav className="hidden items-center gap-5 text-sm font-medium text-muted sm:flex">
-            {NAV_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} className="transition-colors hover:text-foreground">
-                {link.label}
+          {signedIn && (
+            <>
+              <nav className="hidden items-center gap-5 text-sm font-medium text-muted sm:flex">
+                {NAV_LINKS.map((link) => (
+                  <Link key={link.href} href={link.href} className="transition-colors hover:text-foreground">
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label={menuOpen ? "Close menu" : "Open menu"}
+                aria-expanded={menuOpen}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-foreground sm:hidden"
+              >
+                {menuOpen ? <X size={16} /> : <Menu size={16} />}
+              </button>
+            </>
+          )}
+          {/* Logged-out visitors (e.g. someone opening a shared link) get sign-in/up instead of the
+              authed nav, which points at pages that would just bounce them back to sign-in. */}
+          {signedOut && (
+            <div className="flex items-center gap-1 sm:hidden">
+              <GhostListLink />
+              <Link href="/sign-up" className="rounded-full bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90">
+                Sign up
               </Link>
-            ))}
-          </nav>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={menuOpen}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-foreground sm:hidden"
-          >
-            {menuOpen ? <X size={16} /> : <Menu size={16} />}
-          </button>
+            </div>
+          )}
         </div>
         <div className="flex flex-1 items-center gap-3 sm:justify-end">
-          <SearchBar />
+          {signedIn && <SearchBar />}
           <div className="hidden items-center gap-3 sm:flex">
             <ThemeToggle />
-            <AccountMenu />
+            {signedIn && <AccountMenu />}
+            {signedOut && (
+              <>
+                <GhostListLink />
+                <Link href="/sign-in" className="rounded-full px-4 py-2 text-sm font-medium text-muted transition-colors hover:text-foreground">
+                  Sign in
+                </Link>
+                <Link href="/sign-up" className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90">
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
