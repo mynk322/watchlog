@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
-import { Clapperboard, Menu, X } from "lucide-react";
+import { Clapperboard, Menu, User, X } from "lucide-react";
 import { SearchBar } from "./search-bar";
 import { ThemeToggle } from "./theme-toggle";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,26 @@ const NAV_LINKS = [
   { href: "/#watchlist", label: "Watchlist" },
   { href: "/#discover", label: "Discover" },
   { href: "/stats", label: "Stats" },
+  { href: "/me", label: "My profile" },
 ];
+
+/**
+ * The Clerk avatar menu with "Profile" surfaced as the first item — the pattern GitHub/Reddit/
+ * Letterboxd use: the avatar opens the account menu rather than navigating, so Sign out stays
+ * reachable. Re-declaring the default actions after the link fixes their order below Profile.
+ * Points at /me, which resolves to the viewer's canonical /u/[handle].
+ */
+function AccountMenu() {
+  return (
+    <UserButton>
+      <UserButton.MenuItems>
+        <UserButton.Link label="Profile" labelIcon={<User size={16} />} href="/me" />
+        <UserButton.Action label="manageAccount" />
+        <UserButton.Action label="signOut" />
+      </UserButton.MenuItems>
+    </UserButton>
+  );
+}
 
 export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
@@ -62,7 +81,7 @@ export function SiteHeader() {
           <SearchBar />
           <div className="hidden items-center gap-3 sm:flex">
             <ThemeToggle />
-            <UserButton />
+            <AccountMenu />
           </div>
         </div>
       </div>
@@ -85,7 +104,7 @@ export function SiteHeader() {
           </div>
           <div className="flex items-center justify-between border-t border-border px-2 pt-3">
             <span className="text-sm text-muted">Account</span>
-            <UserButton />
+            <AccountMenu />
           </div>
         </nav>
       )}
