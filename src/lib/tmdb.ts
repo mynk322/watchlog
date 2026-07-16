@@ -301,14 +301,31 @@ export async function getCredits(
 const TRENDING_CACHE_TTL_MS = 30 * 60 * 1000;
 const trendingCacheStore = new Map<string, { data: TmdbListItem[]; expiresAt: number }>();
 
-export async function getTrending(window: "day" | "week" = "week"): Promise<TmdbListItem[]> {
-  const cached = trendingCacheStore.get(window);
+export async function getTrending(window: "day" | "week" = "week", pages = 1): Promise<TmdbListItem[]> {
+  const cacheKey = `${window}:${pages}`;
+  const cached = trendingCacheStore.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) return cached.data;
 
-  const data = await tmdbFetch<{ results: RawSearchItem[] }>(`/trending/all/${window}`);
-  const results = data.results.map(normalizeMulti).filter((item): item is TmdbListItem => item !== null);
+  const pageResults = await Promise.all(
+    Array.from({ length: pages }, (_, i) =>
+      tmdbFetch<{ results: RawSearchItem[] }>(`/trending/all/${window}`, { page: String(i + 1) })
+    )
+  );
+  // Flatten pages and dedupe (later pages can repeat items as the ranking shifts).
+  const seen = new Set<string>();
+  const results: TmdbListItem[] = [];
+  for (const data of pageResults) {
+    for (const raw of data.results) {
+      const item = normalizeMulti(raw);
+      if (!item) continue;
+      const key = `${item.tmdbId}:${item.mediaType}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push(item);
+    }
+  }
 
-  trendingCacheStore.set(window, { data: results, expiresAt: Date.now() + TRENDING_CACHE_TTL_MS });
+  trendingCacheStore.set(cacheKey, { data: results, expiresAt: Date.now() + TRENDING_CACHE_TTL_MS });
   return results;
 }
 

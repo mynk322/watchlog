@@ -203,6 +203,20 @@ export async function getRecommendationsForUser(userId: string): Promise<Recomme
     return { items: await trendingFallback(ownedKeys), personalized: false };
   }
 
+  // Thin pool (few seeds, or a big collection where most recommendations are already owned)? Top up
+  // from the trending pool — which also excludes owned — so the row is a full, browsable list rather
+  // than collapsing to ~20.
+  if (ranked.length < MAX_RESULTS) {
+    const have = new Set(ranked.map((r) => ownedKey(r.tmdbId, r.mediaType)));
+    for (const t of await trendingFallback(ownedKeys)) {
+      if (ranked.length >= MAX_RESULTS) break;
+      const key = ownedKey(t.tmdbId, t.mediaType);
+      if (have.has(key)) continue;
+      have.add(key);
+      ranked.push(t);
+    }
+  }
+
   const result: RecommendationResult = { items: ranked, personalized: true };
   cache.set(signature, { result, expiresAt: Date.now() + CACHE_TTL_MS });
   return result;

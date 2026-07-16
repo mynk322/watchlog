@@ -3,9 +3,14 @@ import type { TrendingItemModel } from "@/generated/prisma/models";
 import { prisma } from "./prisma";
 import { getTrending } from "./tmdb";
 
+// Keep a deep-ish trending pool: it's both the "Discover" source and the fallback / top-up pool for
+// recommendations, which needs to be far larger than one page so the row isn't capped at ~20.
+const TRENDING_POOL_SIZE = 100;
+const TRENDING_PAGES = 5;
+
 async function populateTrendingCache(): Promise<void> {
-  const trending = await getTrending("week");
-  const rows = trending.slice(0, 24).map((t) => ({
+  const trending = await getTrending("week", TRENDING_PAGES);
+  const rows = trending.slice(0, TRENDING_POOL_SIZE).map((t) => ({
     tmdbId: t.tmdbId,
     mediaType: t.mediaType === "tv" ? ("TV" as const) : ("MOVIE" as const),
     title: t.title,
@@ -28,12 +33,14 @@ async function populateTrendingCache(): Promise<void> {
  */
 export async function getTrendingItems(): Promise<TrendingItemModel[]> {
   let items = await prisma.trendingItem.findMany({ orderBy: { voteAverage: "desc" } });
-  if (items.length === 0) {
+  // Repopulate when empty OR still holding the old small (24-item) cache, so the deeper pool takes
+  // effect without waiting for the next cron run.
+  if (items.length < TRENDING_POOL_SIZE / 2) {
     try {
       await populateTrendingCache();
       items = await prisma.trendingItem.findMany({ orderBy: { voteAverage: "desc" } });
     } catch {
-      return [];
+      return items; // keep whatever we already had on TMDB failure
     }
   }
   return items;
