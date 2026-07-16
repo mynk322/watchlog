@@ -22,6 +22,7 @@ enum TitleStatus {
 
 model Title {
   id            String      @id @default(cuid())
+  userId        String?
   tmdbId        Int
   mediaType     MediaType
   title         String
@@ -38,6 +39,7 @@ model Title {
   currentSeason Int?
   currentEpisode Int?
   totalSeasons  Int?
+  seasonEpisodeCounts Int[] @default([])
   topCast       Json?
   directors     Json?
   watchUrl      String?
@@ -45,8 +47,17 @@ model Title {
   watchedAt     DateTime?
   updatedAt     DateTime    @updatedAt
 
-  @@unique([tmdbId, mediaType])
-  @@index([status, releaseYear])
+  @@unique([tmdbId, mediaType, userId])
+  @@index([userId, status, releaseYear])
+}
+
+model UserSettings {
+  userId           String   @id
+  theme            String?
+  watchedSortKey   String?
+  watchlistSortKey String?
+  region           String?
+  updatedAt        DateTime @updatedAt
 }
 
 model SearchCache {
