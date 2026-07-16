@@ -317,9 +317,16 @@ export async function getTrending(window: "day" | "week" = "week"): Promise<Tmdb
  * user behavior). Results are all the same media type as the seed. Returns [] on any failure so a
  * single bad seed never sinks the whole recommendation pass.
  */
-export async function getRecommendations(tmdbId: number, mediaType: MediaType): Promise<TmdbListItem[]> {
+export async function getRecommendations(
+  tmdbId: number,
+  mediaType: MediaType,
+  page = 1
+): Promise<TmdbListItem[]> {
   try {
-    const data = await tmdbFetch<{ results: RawSearchItem[] }>(`/${mediaType}/${tmdbId}/recommendations`);
+    const data = await tmdbFetch<{ results: RawSearchItem[] }>(
+      `/${mediaType}/${tmdbId}/recommendations`,
+      { page: String(page) }
+    );
     return data.results.map((r) => normalizeItem(r, mediaType));
   } catch {
     return [];

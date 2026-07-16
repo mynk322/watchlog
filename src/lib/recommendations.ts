@@ -5,9 +5,11 @@ import { getTrendingItems } from "./trending";
 import { toTmdbMediaType } from "./dto";
 import type { MediaType, ProfileRecommendationDTO, TrendingDTO } from "./types";
 
-// Seeding from more than a handful of titles adds TMDB calls for diminishing signal.
-const MAX_SEEDS = 6;
-const MAX_RESULTS = 30;
+// Widen the candidate pool for a long, browsable list: more seed titles, several TMDB pages per
+// seed. Results are cached (per seed signature) so the extra calls only happen on a cold cache.
+const MAX_SEEDS = 12;
+const PAGES_PER_SEED = 3;
+const MAX_RESULTS = 200;
 const CACHE_TTL_MS = 30 * 60 * 1000;
 
 export interface RecommendationResult {
@@ -177,7 +179,13 @@ export async function getRecommendationsForUser(userId: string): Promise<Recomme
 
   const perSeed = await Promise.all(
     seeds.map(async (seed, idx) => {
-      const recs = await tmdbRecommendations(seed.tmdbId, toTmdbMediaType(seed.mediaType));
+      // Pull several pages per seed to deepen the pool (empty/short pages are harmless).
+      const pages = await Promise.all(
+        Array.from({ length: PAGES_PER_SEED }, (_, p) =>
+          tmdbRecommendations(seed.tmdbId, toTmdbMediaType(seed.mediaType), p + 1)
+        )
+      );
+      const recs = pages.flat();
       // Higher-rated seeds (and earlier ones in the sorted list) carry more weight.
       const seedWeight = ((seed.rating ?? 3) / 5) * (1 - idx * 0.08);
       return { recs, seedWeight };
