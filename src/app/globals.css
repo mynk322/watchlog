@@ -15,15 +15,17 @@
 }
 
 [data-theme="light"] {
-  --background: #f7f7f9;
+  --background: #eef0f4;
   --surface: #ffffff;
-  --surface-elevated: #ffffff;
-  --foreground: #16161a;
-  --muted: #6b6b74;
-  --border: #e4e4e9;
+  /* Distinct from --surface so cards, hovers and menus have visible depth on a light page
+     (previously identical to --surface, which flattened everything). */
+  --surface-elevated: #e4e6ec;
+  --foreground: #14141a;
+  --muted: #56565f;
+  --border: #d5d7de;
   --accent: #e11d48;
   --accent-foreground: #ffffff;
-  --gold: #b8842a;
+  --gold: #a9741f;
   --chart-blue: #3163d4;
   --ring: #e11d48;
 }
